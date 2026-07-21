@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A complete Zero-to-Master guide to local, zero-shot forecasting with Google TimesFM 2.5 and Streamlit.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d9488'/%3E%3Cpath d='M6 20l5-5 4 3 6-9 5 4' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta name="color-scheme" content="light dark">
+  <title>TimesFM Zero to Master</title>
+  <script>
+    (() => {
+      const stored = localStorage.getItem('timesfm-docs-theme');
+      const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', dark);
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3/dist/index.global.js"
+          integrity="sha384-2ql948lIdLcGEE0/qxNiudyTjgauA3RDJERu5xW75kFCvSl5a9odyQYCb6tEjnmB"
+          crossorigin="anonymous"></script>
+  <style type="text/tailwindcss">
+    @custom-variant dark (&:where(.dark, .dark *));
+    @theme {
+      --font-display: "Segoe UI Variable Display", "Aptos Display", system-ui, sans-serif;
+      --font-body: "Segoe UI Variable Text", "Aptos", system-ui, sans-serif;
+      --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+  </style>
+  <style>
+    :root {
+      --canvas: #f5f7f4;
+      --surface: #ffffff;
+      --surface-2: #edf2ef;
+      --ink: #17211f;
+      --muted: #5d6a66;
+      --line: #d7deda;
+      --signal: #087f72;
+      --signal-soft: #d8efea;
+      --horizon: #c85428;
+      --horizon-soft: #f8e5dc;
+      --code: #101817;
+      --code-ink: #e8f0ed;
+      --focus: #0a7067;
+    }
+    [data-theme="dark"] {
+      --canvas: #0b1110;
+      --surface: #111a18;
+      --surface-2: #17231f;
+      --ink: #eaf0ed;
+      --muted: #a5b3ae;
+      --line: #2b3935;
+      --signal: #51cabb;
+      --signal-soft: #173b36;
+      --horizon: #f28b5b;
+      --horizon-soft: #42271d;
+      --code: #080d0c;
+      --code-ink: #e8f0ed;
+      --focus: #71d9cd;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { background: var(--canvas); scroll-padding-top: 5rem; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--canvas);
+      font-family: "Segoe UI Variable Text", "Aptos", system-ui, sans-serif;
+      font-size: 1rem;
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in srgb, var(--line) 24%, transparent) 1px, transparent 1px);
+      background-size: 4rem 4rem;
+      mask-image: linear-gradient(to bottom, black, transparent 48rem);
+    }
+    a { color: var(--signal); text-underline-offset: .18em; }
+    a:hover { text-decoration-thickness: 2px; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .skip-link {
+      position: fixed; top: .75rem; left: .75rem; z-index: 100;
+      transform: translateY(-180%); padding: .65rem .9rem;
+      border: 1px solid var(--line); border-radius: .35rem;
+      background: var(--surface); color: var(--ink);
+    }
+    .skip-link:focus { transform: translateY(0); }
+    .reading-progress {
+      position: fixed; inset: 0 auto auto 0; z-index: 80; width: 0; height: 3px;
+      background: var(--horizon); transform-origin: left;
+    }
+    .shell { display: grid; min-height: 100vh; }
+    .sidebar {
+      display: none; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      border-right: 1px solid var(--line); background: color-mix(in srgb, var(--canvas) 92%, transparent);
+      backdrop-filter: blur(14px);
+    }
+    .sidebar-inner { display: flex; min-height: 100%; flex-direction: column; padding: 1.5rem 1.25rem; }
+    .brand { display: flex; align-items: center; gap: .75rem; color: var(--ink); text-decoration: none; }
+    .brand-mark { width: 2.4rem; height: 2.4rem; flex: none; }
+    .eyebrow { color: var(--signal); font-family: "Cascadia Code", Consolas, monospace; font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .brand-title { display: block; font-family: "Segoe UI Variable Display", system-ui, sans-serif; font-size: .98rem; font-weight: 720; line-height: 1.2; }
+    .search-wrap { position: relative; margin-top: 1.5rem; }
+    .search-input {
+      width: 100%; min-height: 2.7rem; padding: .6rem .75rem .6rem 2.35rem;
+      border: 1px solid var(--line); border-radius: .35rem;
+      color: var(--ink); background: var(--surface);
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-icon { position: absolute; left: .75rem; top: .78rem; width: 1rem; height: 1rem; color: var(--muted); pointer-events: none; }
+    .search-results {
+      position: absolute; z-index: 70; top: calc(100% + .35rem); left: 0; right: 0;
+      max-height: 22rem; overflow-y: auto; padding: .35rem;
+      border: 1px solid var(--line); border-radius: .35rem;
+      background: var(--surface); box-shadow: 0 1rem 2rem rgba(5, 18, 15, .14);
+    }
+    .search-results[hidden] { display: none; }
+    .search-result { display: block; width: 100%; padding: .6rem; border: 0; border-radius: .25rem; background: transparent; text-align: left; cursor: pointer; }
+    .search-result:hover, .search-result[aria-selected="true"] { background: var(--surface-2); }
+    .search-result small { display: block; color: var(--muted); font-family: "Cascadia Code", Consolas, monospace; font-size: .66rem; text-transform: uppercase; }
+    .toc { margin: 1.4rem 0; }
+    .toc-list, .toc-sublist { margin: 0; padding: 0; list-style: none; }
+    .toc-sublist { margin: .2rem 0 .65rem .55rem; padding-left: .8rem; border-left: 1px solid var(--line); }
+    .toc-link { display: block; padding: .44rem .55rem; border-radius: .25rem; color: var(--muted); font-size: .88rem; line-height: 1.35; text-decoration: none; }
+    .toc-link:hover { color: var(--ink); background: var(--surface-2); }
+    .toc-link[aria-current="location"] { color: var(--signal); background: var(--signal-soft); font-weight: 700; }
+    .toc-sublist .toc-link { padding: .3rem .45rem; font-size: .77rem; }
+    .sidebar-actions { display: flex; gap: .5rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--line); }
+    .icon-button {
+      display: inline-flex; min-width: 2.55rem; min-height: 2.55rem; align-items: center; justify-content: center;
+      border: 1px solid var(--line); border-radius: .35rem; background: var(--surface); cursor: pointer;
+    }
+    .icon-button:hover { background: var(--surface-2); }
+    .mobile-header {
+      position: sticky; top: 0; z-index: 60; display: flex; min-height: 4rem; align-items: center; justify-content: space-between;
+      padding: .65rem 1rem; border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--canvas) 92%, transparent); backdrop-filter: blur(14px);
+    }
+    dialog.mobile-nav { width: min(92vw, 24rem); height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; border-right: 1px solid var(--line); color: var(--ink); background: var(--canvas); }
+    dialog.mobile-nav::backdrop { background: rgba(2, 8, 7, .62); }
+    .mobile-nav-inner { display: flex; height: 100%; flex-direction: column; padding: 1rem; overflow-y: auto; }
+    main { min-width: 0; }
+    .content { width: min(100%, 82rem); margin-inline: auto; padding: 0 1rem 6rem; }
+    .hero { min-height: min(48rem, 88vh); display: grid; align-items: center; padding: 5rem 0 4rem; border-bottom: 1px solid var(--line); }
+    .hero-grid { display: grid; gap: 2.5rem; align-items: end; }
+    .hero h1 { max-width: 13ch; margin: .65rem 0 1.15rem; font-family: "Segoe UI Variable Display", system-ui, sans-serif; font-size: clamp(3rem, 9vw, 7.5rem); font-weight: 760; letter-spacing: -.065em; line-height: .9; }
+    .hero h1 span { color: var(--signal); }
+    .hero-copy { max-width: 42rem; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.3rem); }
+    .trace-panel { position: relative; min-height: 15rem; padding: 1rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--surface); overflow: hidden; }
+    .trace-panel::before { position: absolute; inset: 0; content: ""; background-image: linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px); background-size: 2rem 2rem; opacity: .45; }
+    .trace-panel svg { position: relative; z-index: 1; width: 100%; height: 12rem; }
+    .trace-labels { position: absolute; z-index: 2; inset: auto 1rem .75rem; display: flex; justify-content: space-between; color: var(--muted); font-family: "Cascadia Code", Consolas, monospace; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+    .chapter { padding: 5rem 0 1rem; scroll-margin-top: 4.5rem; }
+    .chapter-header { display: grid; gap: 1rem; margin-bottom: 3rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+    .chapter-number { color: var(--horizon); font-family: "Cascadia Code", Consolas, monospace; font-size: .78rem; font-weight: 700; letter-spacing: .12em; }
+    .chapter h2 { margin: 0; font-family: "Segoe UI Variable Display", system-ui, sans-serif; font-size: clamp(2.3rem, 5vw, 4.6rem); font-weight: 740; letter-spacing: -.04em; line-height: 1; }
+    .chapter-intro { max-width: 52rem; margin: 0; color: var(--muted); font-size: 1.12rem; }
+    .prose-section { max-width: 76rem; margin: 0 0 4.5rem; scroll-margin-top: 5rem; }
+    .prose-section > p, .prose-section > ul, .prose-section > ol { max-width: 76ch; }
+    .prose-section h3 { max-width: 28ch; margin: 0 0 1rem; font-family: "Segoe UI Variable Display", system-ui, sans-serif; font-size: clamp(1.7rem, 3vw, 2.55rem); font-weight: 720; letter-spacing: -.025em; line-height: 1.12; }
+    .prose-section h4 { max-width: 42ch; margin: 2.4rem 0 .75rem; font-size: 1.18rem; line-height: 1.25; }
+    .prose-section p { margin: 0 0 1.15rem; }
+    .prose-section ul, .prose-section ol { margin: .5rem 0 1.4rem; padding-left: 1.4rem; }
+    .prose-section li { margin: .32rem 0; }
+    .callout { max-width: 76rem; margin: 1.5rem 0; padding: 1rem 1.15rem; border-left: 4px solid var(--horizon); background: var(--horizon-soft); }
+    .callout strong { color: var(--horizon); }
+    .note { border-left-color: var(--signal); background: var(--signal-soft); }
+    .note strong { color: var(--signal); }
+    .table-wrap { max-width: 100%; margin: 1.4rem 0 2rem; overflow-x: auto; border: 1px solid var(--line); border-radius: .35rem; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: .91rem; line-height: 1.48; }
+    caption { padding: .75rem 1rem; color: var(--muted); font-weight: 650; text-align: left; }
+    th, td { padding: .72rem .85rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
+    th { background: var(--surface-2); font-size: .78rem; letter-spacing: .025em; }
+    tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 48%, transparent); }
+    code:not(pre code) { padding: .12em .32em; border: 1px solid var(--line); border-radius: .2rem; color: var(--horizon); background: var(--surface-2); font-family: "Cascadia Code", Consolas, monospace; font-size: .88em; }
+    .code-block { position: relative; max-width: 76rem; margin: 1.35rem 0 2rem; overflow: hidden; border: 1px solid #26332f; border-radius: .4rem; background: var(--code); }
+    .code-head { display: flex; min-height: 2.55rem; align-items: center; justify-content: space-between; padding: .45rem .55rem .45rem .9rem; border-bottom: 1px solid #26332f; color: #9caca7; font-family: "Cascadia Code", Consolas, monospace; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+    .copy-button { padding: .35rem .55rem; border: 1px solid #34443f; border-radius: .25rem; color: #d7e2de; background: #17221f; cursor: pointer; text-transform: none; letter-spacing: 0; }
+    .copy-button:hover { background: #24332f; }
+    pre { margin: 0; padding: 1.1rem; overflow-x: auto; color: var(--code-ink); font-family: "Cascadia Code", Consolas, monospace; font-size: .85rem; line-height: 1.62; tab-size: 2; }
+    .hljs { color: #d9e5e1; background: transparent; }
+    .hljs-comment, .hljs-quote { color: #7e918b; font-style: italic; }
+    .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-name { color: #ff9b70; }
+    .hljs-string, .hljs-doctag, .hljs-regexp { color: #76d7c9; }
+    .hljs-title, .hljs-section, .hljs-function .hljs-title { color: #f1ca72; }
+    .hljs-number, .hljs-symbol, .hljs-bullet { color: #bba8ff; }
+    .hljs-variable, .hljs-template-variable, .hljs-attr { color: #8bc5ff; }
+    .equation { max-width: 76rem; margin: 1.4rem 0 1.8rem; padding: 1rem; overflow-x: auto; border-block: 1px solid var(--line); color: var(--ink); text-align: center; }
+    math { font-size: 1.12rem; }
+    .flow-figure { max-width: 76rem; margin: 1.5rem 0 2rem; padding: 1rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--surface); }
+    .flow-figure figcaption { margin-bottom: 1rem; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .flow { display: flex; align-items: stretch; gap: .55rem; overflow-x: auto; padding-bottom: .3rem; }
+    .flow-node { min-width: 9.2rem; flex: 1; padding: .75rem; border: 1px solid var(--line); border-radius: .25rem; background: var(--canvas); font-size: .83rem; line-height: 1.4; }
+    .flow-node strong { display: block; margin-bottom: .2rem; color: var(--signal); }
+    .flow-arrow { display: grid; flex: none; place-items: center; color: var(--horizon); font-size: 1.2rem; }
+    .tabs { max-width: 76rem; margin: 1.5rem 0 2rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--surface); overflow: hidden; }
+    .tab-list { display: flex; gap: .2rem; padding: .4rem; border-bottom: 1px solid var(--line); background: var(--surface-2); overflow-x: auto; }
+    .tab-button { flex: 1; min-width: 7rem; padding: .65rem .8rem; border: 1px solid transparent; border-radius: .25rem; color: var(--muted); background: transparent; cursor: pointer; font-weight: 700; }
+    .tab-button[aria-selected="true"] { border-color: var(--line); color: var(--signal); background: var(--surface); }
+    .tab-panel { padding: 1.2rem; }
+    .tab-panel[hidden] { display: none; }
+    .references { max-width: 76rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
+    .references li { margin-bottom: .55rem; }
+    .chapter-end { display: flex; align-items: center; gap: .75rem; margin-top: 3rem; color: var(--muted); font-family: "Cascadia Code", Consolas, monospace; font-size: .72rem; text-transform: uppercase; }
+    .chapter-end::after { height: 1px; flex: 1; content: ""; background: var(--line); }
+    footer { margin-top: 5rem; padding: 2rem 0; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (min-width: 64rem) {
+      .shell { grid-template-columns: 18rem minmax(0, 1fr); }
+      .sidebar { display: block; }
+      .mobile-header { display: none; }
+      .content { padding-inline: clamp(2.5rem, 6vw, 6rem); }
+      .hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(24rem, .9fr); }
+      .chapter-header { grid-template-columns: 8rem minmax(0, 1fr); }
+      .chapter-header .chapter-intro { grid-column: 2; }
+    }
+    @media (max-width: 40rem) {
+      .hero { min-height: auto; padding-top: 3.5rem; }
+      .hero h1 { font-size: clamp(3rem, 17vw, 5rem); }
+      .content { padding-inline: .9rem; }
+      .chapter { padding-top: 4rem; }
+      th, td { min-width: 9rem; padding: .62rem .7rem; }
+      .flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+      .flow-node { min-width: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+    @media print {
+      .sidebar, .mobile-header, .reading-progress, .copy-button, .search-wrap { display: none !important; }
+      .shell { display: block; }
+      body { background: white; color: black; font-size: 10pt; }
+      .content { width: 100%; padding: 0; }
+      .hero { min-height: auto; }
+      .chapter { break-before: page; }
+      .table-wrap, .code-block, .flow-figure { break-inside: avoid; }
+    }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js"
+          integrity="sha384-RH2xi4eIQ/gjtbs9fUXM68sLSi99C7ZWBRX1vDrVv6GQXRibxXLbwO2NGZB74MbU"
+          crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/languages/powershell.min.js"
+          integrity="sha384-q/8iVbv95DiFN+l7qeoBwJ0Wju7gozJemMfG3DdxiOR8CfA/2dKvKA3W5t4l/n9t"
+          crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/languages/ini.min.js"
+          integrity="sha384-NrmnsdarwteQHPGjt70kaQTi1KE0XfOJNX9/VJSg6wWwU6U2nPzjl3iWkgU1cvyx"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to tutorial</a>
+  <div id="reading-progress" class="reading-progress" aria-hidden="true"></div>
+
+  <header class="mobile-header">
+    <a class="brand" href="#top" aria-label="TimesFM Zero to Master home">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M4 31 C10 31 10 14 16 14 S22 37 28 28 S34 18 44 18" fill="none" stroke="var(--signal)" stroke-width="4"/><path d="M29 28 C35 20 38 18 44 18" fill="none" stroke="var(--horizon)" stroke-width="4" stroke-dasharray="3 4"/></svg>
+      <span><span class="eyebrow">TimesFM 2.5</span><span class="brand-title">Zero to Master</span></span>
+    </a>
+    <div class="flex gap-2">
+      <button class="icon-button theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+        <svg class="theme-icon h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2m-3.64-6.36-1.42 1.42M8.06 15.94l-1.42 1.42m0-11.72 1.42 1.42m7.88 8.88 1.42 1.42"/><circle cx="12" cy="12" r="4"/></svg>
+      </button>
+      <button id="menu-open" class="icon-button" type="button" aria-label="Open tutorial navigation" aria-haspopup="dialog">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <dialog id="mobile-nav" class="mobile-nav" aria-labelledby="mobile-nav-title">
+    <div class="mobile-nav-inner">
+      <div class="flex items-center justify-between gap-4">
+        <strong id="mobile-nav-title" class="font-display text-lg">Tutorial navigation</strong>
+        <button id="menu-close" class="icon-button" type="button" aria-label="Close tutorial navigation">×</button>
+      </div>
+      <div class="search-wrap" data-search-scope="mobile">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <label class="sr-only" for="search-mobile">Search tutorial headings</label>
+        <input id="search-mobile" class="search-input search-control" type="search" role="combobox" placeholder="Search headings…" autocomplete="off" aria-autocomplete="list" aria-controls="search-results-mobile" aria-expanded="false">
+        <!-- [html-validate-disable-next prefer-native-element] -->
+        <div id="search-results-mobile" class="search-results" role="listbox" hidden></div>
+      </div>
+      <nav class="toc" aria-label="Mobile tutorial contents"><ol id="toc-mobile" class="toc-list"></ol></nav>
+    </div>
+  </dialog>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="Tutorial navigation">
+      <div class="sidebar-inner">
+        <a class="brand" href="#top" aria-label="TimesFM Zero to Master home">
+          <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M4 31 C10 31 10 14 16 14 S22 37 28 28 S34 18 44 18" fill="none" stroke="var(--signal)" stroke-width="4"/><path d="M29 28 C35 20 38 18 44 18" fill="none" stroke="var(--horizon)" stroke-width="4" stroke-dasharray="3 4"/></svg>
+          <span><span class="eyebrow">TimesFM 2.5</span><span class="brand-title">Zero to Master</span></span>
+        </a>
+        <div class="search-wrap" data-search-scope="desktop">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <label class="sr-only" for="search-desktop">Search tutorial headings</label>
+          <input id="search-desktop" class="search-input search-control" type="search" role="combobox" placeholder="Search headings…" autocomplete="off" aria-autocomplete="list" aria-controls="search-results-desktop" aria-expanded="false">
+          <!-- [html-validate-disable-next prefer-native-element] -->
+          <div id="search-results-desktop" class="search-results" role="listbox" hidden></div>
+        </div>
+        <nav class="toc" aria-label="Tutorial contents"><ol id="toc-desktop" class="toc-list"></ol></nav>
+        <div class="sidebar-actions">
+          <button class="icon-button theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+            <svg class="theme-icon h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2m-3.64-6.36-1.42 1.42M8.06 15.94l-1.42 1.42m0-11.72 1.42 1.42m7.88 8.88 1.42 1.42"/><circle cx="12" cy="12" r="4"/></svg>
+          </button>
+          <a class="icon-button" href="https://github.com/pypi-ahmad/timesfm-forecasting-studio" aria-label="Open the TimesFM Forecasting Studio repository">↗</a>
+        </div>
+      </div>
+    </aside>
+
+    <main id="main-content" tabindex="-1">
+      <div class="content">
+        <section id="top" class="hero" aria-labelledby="page-title">
+          <div class="hero-grid">
+            <div>
+              <p class="eyebrow">Local-first forecasting field guide</p>
+              <h1 id="page-title">Zero to <span>Master.</span></h1>
+              <p class="hero-copy">Understand the model, prepare reliable time series, run TimesFM 2.5 locally, and interpret zero-shot forecasts without treating uncertainty as decoration.</p>
+              <div class="mt-8 flex flex-wrap gap-3">
+                <a class="inline-flex items-center gap-2 rounded-sm bg-[var(--signal)] px-4 py-2.5 font-bold text-white no-underline" href="#introduction">Begin with foundations <span aria-hidden="true">↓</span></a>
+                <a class="inline-flex items-center gap-2 rounded-sm border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 font-bold text-[var(--ink)] no-underline" href="README.md">Repository guide</a>
+              </div>
+            </div>
+            <figure class="trace-panel" aria-labelledby="trace-caption">
+              <svg viewBox="0 0 640 220" role="img" aria-label="A solid historical time-series trace transitions into a dashed forecast trace with an uncertainty band">
+                <path d="M24 158 C60 150 70 80 105 92 S155 180 194 125 S244 48 286 104 S333 164 374 112" fill="none" stroke="var(--signal)" stroke-width="5" stroke-linecap="round"/>
+                <path d="M374 112 C420 60 470 76 514 104 S573 120 616 72 L616 137 C568 166 536 150 505 135 S433 116 374 142 Z" fill="var(--horizon-soft)" opacity=".9"/>
+                <path d="M374 112 C420 86 472 95 514 119 S574 132 616 103" fill="none" stroke="var(--horizon)" stroke-width="5" stroke-linecap="round" stroke-dasharray="8 10"/>
+                <line x1="374" y1="24" x2="374" y2="196" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 5"/>
+              </svg>
+              <figcaption id="trace-caption" class="trace-labels"><span>Observed context</span><span>Forecast horizon</span></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <article id="introduction" class="chapter" data-chapter="Introduction" aria-labelledby="introduction-title">
+          <header class="chapter-header">
+            <div class="chapter-number">CHAPTER 01 / 04</div>
+            <h2 id="introduction-title">Introduction</h2>
+            <p class="chapter-intro">Build a working mental model of time-series foundation models, patched decoding, probabilistic outputs, and zero-shot transfer before touching the runtime.</p>
+          </header>
+
+          <section id="time-series-forecasting" class="prose-section" role="group">
+            <h3>1. Time series and forecasting</h3>
+            <p>A <strong>time series</strong> is an ordered sequence of measurements. For a univariate series, each value is associated with one timestamp:</p>
+            <div class="equation" role="math" aria-label="y subscript one through T equals y one, y two, through y T">
+              <math display="block"><mrow><msub><mi mathvariant="bold">y</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo>=</mo><mo>(</mo><msub><mi>y</mi><mn>1</mn></msub><mo>,</mo><msub><mi>y</mi><mn>2</mn></msub><mo>,</mo><mo>…</mo><mo>,</mo><msub><mi>y</mi><mi>T</mi></msub><mo>)</mo></mrow></math>
+            </div>
+            <p>Forecasting uses the latest <var>C</var> observations as <strong>context</strong> to estimate the next <var>H</var> observations, the <strong>forecast horizon</strong>. This repository intentionally performs univariate forecasting: uploaded columns may aid inspection, but exactly one numeric target reaches the model.</p>
+            <div class="table-wrap"><table><caption>Core forecasting vocabulary</caption><thead><tr><th scope="col">Term</th><th scope="col">Meaning here</th><th scope="col">Example</th></tr></thead><tbody>
+              <tr><td><strong>Observation</strong></td><td>One timestamped target value</td><td>Hourly demand at 14:00</td></tr>
+              <tr><td><strong>Context</strong></td><td>Historical values supplied to the model</td><td>Previous 720 hours</td></tr>
+              <tr><td><strong>Forecast horizon</strong></td><td>Number of future steps requested</td><td>Next 48 hours</td></tr>
+              <tr><td><strong>Frequency</strong></td><td>Spacing of the timestamp grid</td><td>Hourly, daily, month-end</td></tr>
+              <tr><td><strong>Point forecast</strong></td><td>One estimate per future step</td><td>The q50/median path</td></tr>
+              <tr><td><strong>Quantile forecast</strong></td><td>Estimate at probability level τ</td><td>q10, q50, q90</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Ordered does not mean regular.</strong> A sorted series with random gaps is still irregular. The application rejects it until the timestamp grid is repaired.</aside>
+          </section>
+
+          <section id="tsfm-foundation-model" class="prose-section" role="group">
+            <h3>2. What is a time-series foundation model?</h3>
+            <p>A <strong>foundation model</strong> is pretrained on broad data and reused across downstream tasks. A time-series foundation model applies that idea to temporal sequences. TimesFM starts with parameters learned from a large, multi-domain pretraining corpus rather than estimating fresh parameters from only the uploaded series.</p>
+            <figure class="flow-figure"><figcaption>Pretraining to zero-shot inference</figcaption><div class="flow">
+              <div class="flow-node"><strong>Broad corpus</strong>Many domains and temporal granularities</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Pretrain</strong>Patch, normalize, and learn shared parameters θ*</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Checkpoint</strong>Publish fixed model weights</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>New series</strong>Forecast unseen local history without fine-tuning</div>
+            </div></figure>
+            <p>Google describes TimesFM as a patched, decoder-only model for zero-shot forecasting across domains and granularities. This repository uses <strong>TimesFM 2.5 200M for PyTorch</strong> at a pinned Hugging Face revision. The primary sources are the <a href="https://github.com/google-research/timesfm">official repository</a>, <a href="https://arxiv.org/abs/2310.10688">research paper</a>, and <a href="https://research.google/blog/a-decoder-only-foundation-model-for-time-series-forecasting/">Google Research overview</a>.</p>
+            <h4 id="patching">2.1 Patching</h4>
+            <p>Passing every scalar as its own transformer token would make long histories expensive. TimesFM groups consecutive observations into <strong>input patches</strong>. This app mirrors the 32-point input patch and 128-point output patch when rounding compilation sizes.</p>
+            <figure class="flow-figure"><figcaption>Patched decoder sequence</figcaption><div class="flow">
+              <div class="flow-node"><strong>Scalar history</strong>y₁ … y<sub>C</sub></div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Input patches</strong>32 ordered values per patch</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Decoder stack</strong>Patch embeddings and attention</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Output patches</strong>128 steps per compiled patch</div>
+            </div></figure>
+            <p>Patching is not seasonal aggregation. Values are not averaged into weekly or monthly statistics; their within-patch ordering remains meaningful.</p>
+            <h4 id="probabilistic-outputs">2.2 Probabilistic outputs</h4>
+            <p>TimesFM 2.5 can produce a continuous-quantile forecast. Its interface returns ten channels per future step: the mean followed by q10 through q90. The application displays <strong>q50 as the point forecast</strong> and shades q10–q90.</p>
+            <div class="equation" role="math" aria-label="Pinball loss rho tau of u equals u times tau minus the indicator of u less than zero">
+              <math display="block"><mrow><msub><mi>ρ</mi><mi>τ</mi></msub><mo>(</mo><mi>u</mi><mo>)</mo><mo>=</mo><mi>u</mi><mo>(</mo><mi>τ</mi><mo>−</mo><mi mathvariant="normal">𝟙</mi><mo>[</mo><mi>u</mi><mo>&lt;</mo><mn>0</mn><mo>]</mo><mo>)</mo></mrow></math>
+            </div>
+            <p>These are model-estimated predictive quantiles, not a guarantee that 80% of observations will fall inside q10–q90 for every dataset.</p>
+          </section>
+
+          <section id="zero-shot-transfer" class="prose-section" role="group">
+            <h3>3. Zero-shot transfer learning</h3>
+            <p>Let <var>D</var><sub>pre</sub> denote the pretraining collection and <var>L</var> its forecasting objective. Pretraining learns shared parameters θ*. For a previously unseen series <var>z</var>, zero-shot inference keeps θ* fixed:</p>
+            <div class="equation" role="math" aria-label="Forecast z T plus one through T plus H equals f theta star of z T minus C plus one through T">
+              <math display="block"><mrow><msub><mover><mi mathvariant="bold">z</mi><mo>^</mo></mover><mrow><mi>T</mi><mo>+</mo><mn>1</mn><mo>:</mo><mi>T</mi><mo>+</mo><mi>H</mi></mrow></msub><mo>=</mo><msub><mi>f</mi><msup><mi>θ</mi><mo>*</mo></msup></msub><mo>(</mo><msub><mi mathvariant="bold">z</mi><mrow><mi>T</mi><mo>−</mo><mi>C</mi><mo>+</mo><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo>)</mo></mrow></math>
+            </div>
+            <div class="table-wrap"><table><caption>What changes at each stage?</caption><thead><tr><th scope="col">Stage</th><th scope="col">Data used</th><th scope="col">Parameters changed?</th><th scope="col">In this app?</th></tr></thead><tbody>
+              <tr><td>Foundation pretraining</td><td>Large multi-domain corpus</td><td>Yes</td><td>No; performed by Google</td></tr>
+              <tr><td>Zero-shot inference</td><td>User-selected context</td><td>No</td><td>Yes</td></tr>
+              <tr><td>Fine-tuning</td><td>Target-domain windows</td><td>Yes</td><td>No</td></tr>
+              <tr><td>Backtesting</td><td>Historical holdouts</td><td>No model change required</td><td>Not automated</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Zero-shot is not zero-validation.</strong> It removes task-specific training, not the need to compare forecasts against held-out observations and domain baselines.</aside>
+          </section>
+
+          <section id="model-comparison" class="prose-section" role="group">
+            <h3>4. TimesFM versus established approaches</h3>
+            <p>ARIMA and Prophet are normally fit per series. DeepAR learns a global autoregressive model from a collection of related series. TimesFM is pretrained broadly and can forecast a new series without target-domain fitting.</p>
+            <div class="table-wrap"><table><caption>Forecasting approach comparison</caption><thead><tr><th scope="col">Dimension</th><th scope="col">ARIMA</th><th scope="col">Prophet</th><th scope="col">DeepAR</th><th scope="col">TimesFM 2.5</th></tr></thead><tbody>
+              <tr><td>Mechanism</td><td>Autoregression, differencing, moving-average errors</td><td>Additive trend, seasonalities, holidays</td><td>Global autoregressive recurrent network</td><td>Patched decoder-only foundation model</td></tr>
+              <tr><td>Typical fitting</td><td>Per series</td><td>Per series</td><td>Related-series panel</td><td>Pretrained checkpoint; zero-shot locally</td></tr>
+              <tr><td>Seasonality</td><td>Seasonal orders</td><td>Explicit Fourier terms</td><td>Learned from training data</td><td>Implicit in values; no 2.5 frequency token</td></tr>
+              <tr><td>Covariates</td><td>ARIMAX variants</td><td>Regressors and holidays</td><td>Dynamic/static features</td><td>Not exposed by this app</td></tr>
+              <tr><td>Uncertainty</td><td>Model-dependent intervals</td><td>Posterior/simulation intervals</td><td>Predictive distribution</td><td>Mean and quantiles</td></tr>
+              <tr><td>New-domain use</td><td>Refit</td><td>Refit</td><td>Usually retrain or adapt</td><td>Direct zero-shot inference</td></tr>
+              <tr><td>Interpretability</td><td>Coefficients and diagnostics</td><td>Trend/seasonality components</td><td>Neural latent state</td><td>Forecast path and quantiles</td></tr>
+            </tbody></table></div>
+            <h4 id="model-selection">4.1 When each model is attractive</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Situation</th><th scope="col">Strong first baseline</th><th scope="col">Reason</th></tr></thead><tbody>
+              <tr><td>Short, stable series with understood dynamics</td><td>ARIMA/ETS</td><td>Compact assumptions and diagnostics</td></tr>
+              <tr><td>Business series with calendar effects</td><td>Prophet</td><td>Explicit trend, seasonality, holidays</td></tr>
+              <tr><td>Thousands of related series with covariates</td><td>DeepAR</td><td>Joint training shares panel information</td></tr>
+              <tr><td>Unrelated series or rapid exploration</td><td>TimesFM</td><td>Reusable zero-shot checkpoint</td></tr>
+            </tbody></table></div>
+            <p>No row declares a universal winner. Compare naive seasonal forecasts, statistical baselines, and TimesFM on the same rolling-origin evaluation. Authoritative references include the <a href="https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html">statsmodels ARIMA API</a>, <a href="https://facebook.github.io/prophet/docs/quick_start.html">Prophet documentation</a>, and <a href="https://arxiv.org/abs/1704.04110">DeepAR paper</a>.</p>
+          </section>
+
+          <section id="frequency-meaning" class="prose-section" role="group">
+            <h3>5. What varying frequency means in TimesFM 2.5</h3>
+            <p>TimesFM was designed to generalize across granularities, but <strong>TimesFM 2.5 removed the frequency indicator</strong> from its API. In this application frequency validates the datetime grid and generates future timestamps. It is not passed as an hourly, daily, or monthly feature.</p>
+            <figure class="flow-figure"><figcaption>Frequency stays outside model inference</figcaption><div class="flow">
+              <div class="flow-node"><strong>Date column</strong>Parse and sort timestamps</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Frequency</strong>Validate exact regularity</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Future index</strong>Extend from the last timestamp</div>
+              <div class="flow-arrow" aria-hidden="true">+</div><div class="flow-node"><strong>TimesFM</strong>Receives ordered target values only</div>
+            </div></figure>
+          </section>
+
+          <section id="capability-boundary" class="prose-section" role="group">
+            <h3>6. Capability boundary</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Capability</th><th scope="col">Current behavior</th></tr></thead><tbody>
+              <tr><td>Checkpoint</td><td><code>google/timesfm-2.5-200m-pytorch</code> at a pinned commit</td></tr>
+              <tr><td>Context</td><td>2–16,256 selected observations, subject to the rounded combined limit</td></tr>
+              <tr><td>Horizon</td><td>1–1,024 observations</td></tr>
+              <tr><td>Inputs</td><td>One 1-D float array per series</td></tr>
+              <tr><td>Batching</td><td>Compatible series share horizon and non-negative setting</td></tr>
+              <tr><td>Outputs</td><td>q50 point forecast plus mean and q10–q90</td></tr>
+              <tr><td>Hardware</td><td>Auto, CPU, or CUDA</td></tr>
+              <tr><td>Training / covariates</td><td>No training; no app covariates</td></tr>
+              <tr><td>Evaluation</td><td>User-managed; no built-in backtester</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Operational forecast is not business truth.</strong> Structural breaks, promotions, outages, and policy changes may be absent from numeric history. Pair output with domain review.</aside>
+          </section>
+
+          <section id="introduction-checkpoint" class="prose-section" role="group">
+            <h3>7. Knowledge checkpoint</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Question</th><th scope="col">Expected answer</th></tr></thead><tbody>
+              <tr><td>Does the app train on an uploaded file?</td><td>No; it performs zero-shot inference.</td></tr>
+              <tr><td>Does “daily” send a daily token?</td><td>No; frequency validates and extends timestamps.</td></tr>
+              <tr><td>What is the displayed point forecast?</td><td>q50, the median quantile.</td></tr>
+              <tr><td>Why can TimesFM accept unseen domains?</td><td>Shared parameters were pretrained across broad time-series data.</td></tr>
+              <tr><td>What precedes production use?</td><td>Held-out evaluation against relevant baselines.</td></tr>
+            </tbody></table></div>
+            <div class="references"><h4 id="introduction-references">References</h4><ul>
+              <li><a href="https://github.com/google-research/timesfm">Google Research TimesFM repository</a></li>
+              <li><a href="https://arxiv.org/abs/2310.10688"><cite>A Decoder-only Foundation Model for Time-series Forecasting</cite></a></li>
+              <li><a href="https://research.google/blog/a-decoder-only-foundation-model-for-time-series-forecasting/">Google Research overview</a></li>
+              <li><a href="https://arxiv.org/abs/1704.04110">DeepAR paper</a>, <a href="https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html">ARIMA reference</a>, and <a href="https://facebook.github.io/prophet/docs/quick_start.html">Prophet documentation</a></li>
+            </ul></div>
+          </section>
+          <div class="chapter-end">Foundations complete</div>
+        </article>
+
+        <article id="installation" class="chapter" data-chapter="Installation" aria-labelledby="installation-title">
+          <header class="chapter-header">
+            <div class="chapter-number">CHAPTER 02 / 04</div>
+            <h2 id="installation-title">Installation</h2>
+            <p class="chapter-intro">Install the repository locally, verify CPU or NVIDIA CUDA execution, authenticate Hugging Face and Kaggle, and prepare a reproducible model cache.</p>
+          </header>
+
+          <section id="runtime-contract" class="prose-section" role="group">
+            <h3>1. Runtime contract</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Component</th><th scope="col">Repository value</th><th scope="col">Why it matters</th></tr></thead><tbody>
+              <tr><td>Python</td><td><code>&gt;=3.14,&lt;3.15</code></td><td>The lockfile resolves for Python 3.14</td></tr>
+              <tr><td>Package manager</td><td><code>uv</code> with <code>uv.lock</code></td><td>Canonical reproducible environment</td></tr>
+              <tr><td>PyTorch</td><td>2.13.0</td><td>TimesFM PyTorch backend</td></tr>
+              <tr><td>PyTorch index</td><td>CUDA 13.0</td><td>Selected by project metadata and lockfile</td></tr>
+              <tr><td>TimesFM package</td><td>2.0.2</td><td>Provides the TimesFM 2.5 model class</td></tr>
+              <tr><td>Model</td><td><code>google/timesfm-2.5-200m-pytorch</code></td><td>Downloaded lazily on first forecast</td></tr>
+              <tr><td>Revision</td><td><code>1d952420…790e3</code></td><td>Reproducible checkpoint</td></tr>
+            </tbody></table></div>
+            <p><code>pyproject.toml</code> and <code>uv.lock</code> are authoritative. <code>requirements.txt</code> remains available for pip-compatible environments.</p>
+            <figure class="flow-figure"><figcaption>Local setup path</figcaption><div class="flow">
+              <div class="flow-node"><strong>Clone</strong>Get the repository</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Environment</strong>uv, venv, or Conda</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Verify</strong>Imports and Torch device</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Authenticate</strong>HF/Kaggle credentials</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Run</strong>Streamlit and first forecast</div>
+            </div></figure>
+          </section>
+
+          <section id="prerequisites" class="prose-section" role="group">
+            <h3>2. Prerequisites</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Requirement</th><th scope="col">Check</th><th scope="col">Official source</th></tr></thead><tbody>
+              <tr><td>Git</td><td><code>git --version</code></td><td><a href="https://git-scm.com/downloads">Git downloads</a></td></tr>
+              <tr><td>uv</td><td><code>uv --version</code></td><td><a href="https://docs.astral.sh/uv/getting-started/installation/">uv installation</a></td></tr>
+              <tr><td>NVIDIA driver, optional</td><td><code>nvidia-smi</code></td><td><a href="https://www.nvidia.com/download/index.aspx">NVIDIA drivers</a></td></tr>
+              <tr><td>Conda, optional</td><td><code>conda --version</code></td><td><a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">Conda environments</a></td></tr>
+            </tbody></table></div>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Install uv · Windows</span></div><pre><code class="language-powershell">powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv --version</code></pre></div>
+            <div class="code-block" data-language="Bash"><div class="code-head"><span>Install uv · macOS/Linux</span></div><pre><code class="language-bash">curl -LsSf https://astral.sh/uv/install.sh | sh
+uv --version</code></pre></div>
+            <aside class="callout" role="note"><strong>⚠ Review organization policy</strong> before executing downloaded installers. The commands above are the methods published by Astral.</aside>
+          </section>
+
+          <section id="clone-and-environment" class="prose-section" role="group">
+            <h3>3–6. Clone and create an environment</h3>
+            <p>The workspace has no configured public remote. Replace the generic owner and repository after publishing:</p>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Clone · Windows</span></div><pre><code class="language-powershell">git clone https://github.com/pypi-ahmad/timesfm-forecasting-studio.git
+Set-Location timesfm-forecasting-studio</code></pre></div>
+            <p>Choose one environment method. <strong>uv is recommended</strong> because it honors the canonical lockfile and CUDA package source.</p>
+            <div class="tabs" data-tabs="installation-methods">
+              <div class="tab-list" role="tablist" aria-label="Python environment method">
+                <button id="tab-uv" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-uv" tabindex="0">uv · recommended</button>
+                <button id="tab-venv" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-venv" tabindex="-1">venv + pip</button>
+                <button id="tab-conda" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-conda" tabindex="-1">Conda + pip</button>
+              </div>
+              <div id="panel-uv" class="tab-panel" role="tabpanel" aria-labelledby="tab-uv">
+                <h4>Recommended setup with uv</h4>
+                <p>uv installs a compatible Python when necessary, creates <code>.venv</code>, and synchronizes exact locked dependencies.</p>
+                <div class="code-block" data-language="PowerShell"><div class="code-head"><span>PowerShell</span></div><pre><code class="language-powershell">uv python install 3.14
+uv sync --locked --group dev
+uv run python -c "import streamlit, timesfm, torch; print(torch.__version__)"
+uv run streamlit run app.py</code></pre></div>
+                <aside class="callout note" role="note"><strong>✓ Prefer <code>uv run …</code>.</strong> It runs commands in the project environment without manual activation.</aside>
+              </div>
+              <div id="panel-venv" class="tab-panel" role="tabpanel" aria-labelledby="tab-venv" hidden>
+                <h4>Standard-library venv</h4>
+                <p>This path follows <code>requirements.txt</code>, not the canonical lockfile.</p>
+                <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Windows PowerShell</span></div><pre><code class="language-powershell">py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+streamlit run app.py</code></pre></div>
+                <div class="code-block" data-language="Bash"><div class="code-head"><span>macOS/Linux</span></div><pre><code class="language-bash">python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+streamlit run app.py</code></pre></div>
+                <aside class="callout" role="note"><strong>⚠ CUDA source differs.</strong> <code>requirements.txt</code> does not encode the CUDA 13.0 index from <code>uv.lock</code>. Verify the installed Torch build.</aside>
+              </div>
+              <div id="panel-conda" class="tab-panel" role="tabpanel" aria-labelledby="tab-conda" hidden>
+                <h4>Conda-managed Python</h4>
+                <p>Use Conda for Python and isolation, then install the repository's direct Python packages with pip.</p>
+                <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Conda shell</span></div><pre><code class="language-powershell">conda create --name timesfm-studio python=3.14 -y
+conda activate timesfm-studio
+python -m pip install -r requirements.txt
+streamlit run app.py</code></pre></div>
+                <p>Remove only this environment later with <code>conda env remove --name timesfm-studio</code>.</p>
+              </div>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Method</th><th scope="col">Reproducibility here</th><th scope="col">GPU source encoded?</th><th scope="col">Recommended use</th></tr></thead><tbody>
+              <tr><td>uv + lockfile</td><td>Highest</td><td>Yes, CUDA 13.0</td><td>Development and verification</td></tr>
+              <tr><td>venv + pip</td><td>Direct pins only</td><td>No</td><td>Simple compatibility setup</td></tr>
+              <tr><td>Conda + pip</td><td>Direct pins only</td><td>No</td><td>Existing Conda workflows</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section id="cpu-cuda" class="prose-section" role="group">
+            <h3>7. CPU versus CUDA</h3>
+            <p>The app offers <strong>Auto</strong>, <strong>CPU</strong>, and <strong>CUDA</strong>. Auto uses CUDA when <code>torch.cuda.is_available()</code> is true; otherwise it selects CPU. Explicit CUDA fails clearly when unavailable.</p>
+            <h4 id="verify-pytorch">7.1 Verify PyTorch</h4>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Torch device diagnostic</span></div><pre><code class="language-powershell">uv run python -c "import torch; print({'torch': torch.__version__, 'cuda_build': torch.version.cuda, 'cuda_available': torch.cuda.is_available(), 'devices': torch.cuda.device_count()})"</code></pre></div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Result</th><th scope="col">Meaning</th><th scope="col">App selection</th></tr></thead><tbody>
+              <tr><td><code>cuda_available: True</code></td><td>Driver and wheel expose an NVIDIA GPU</td><td>Auto or CUDA</td></tr>
+              <tr><td>False with a CUDA build value</td><td>CUDA wheel exists but runtime cannot use the GPU</td><td>CPU; inspect driver/device</td></tr>
+              <tr><td><code>cuda_build: None</code></td><td>CPU-only PyTorch build</td><td>CPU</td></tr>
+            </tbody></table></div>
+            <h4 id="resource-tradeoffs">7.2 Resource tradeoffs</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Device</th><th scope="col">Benefit</th><th scope="col">Cost</th></tr></thead><tbody>
+              <tr><td>CUDA</td><td>Faster inference</td><td>GPU memory and compatible NVIDIA stack</td></tr>
+              <tr><td>CPU</td><td>No NVIDIA hardware required</td><td>Higher latency and host-memory use</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Out of memory.</strong> Reduce context, horizon, or simultaneously forecast datasets. Close other GPU-heavy programs. CPU removes GPU-memory pressure but may require substantial RAM and time.</aside>
+          </section>
+
+          <section id="authentication-cache" class="prose-section" role="group">
+            <h3>8. Hugging Face authentication and caching</h3>
+            <p>Public assets often work without a token, but authentication improves reliability and is required for gated/private repositories. Create a read-only token in <a href="https://huggingface.co/settings/tokens">Hugging Face settings</a>.</p>
+            <h4 id="hf-cli-login">8.1 CLI login</h4>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Hugging Face CLI</span></div><pre><code class="language-powershell">uv run hf auth login
+uv run hf auth whoami</code></pre></div>
+            <p>Paste the token only into the secure prompt. See the <a href="https://huggingface.co/docs/huggingface_hub/quick-start#authentication">official authentication guide</a>.</p>
+            <h4 id="environment-variables">8.2 Environment variables</h4>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Current PowerShell process</span></div><pre><code class="language-powershell">$env:HF_TOKEN = "paste-token-in-your-terminal"
+$env:TIMESFM_APP_CACHE = ".cache"
+uv run streamlit run app.py</code></pre></div>
+            <h4 id="streamlit-secrets">8.3 Streamlit secrets</h4>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Create local secrets file</span></div><pre><code class="language-powershell">Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml</code></pre></div>
+            <div class="code-block" data-language="TOML"><div class="code-head"><span>.streamlit/secrets.toml</span></div><pre><code class="language-ini">HF_TOKEN = "hf_read_only_token"
+KAGGLE_API_TOKEN = "kaggle_token"
+TIMESFM_APP_CACHE = ".cache"
+TIMESFM_OFFLINE = "false"</code></pre></div>
+            <aside class="callout" role="note"><strong>⚠ Never commit secrets.</strong> Keep <code>.streamlit/secrets.toml</code>, <code>kaggle.json</code>, tokens, and credential-bearing logs out of version control.</aside>
+            <h4 id="offline-mode">8.4 First download and offline mode</h4>
+            <p>The model loads lazily. Opening the UI does not download weights; the first forecast does. The default cache is <code>.cache/huggingface</code>. After one successful online forecast:</p>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Cached-only restart</span></div><pre><code class="language-powershell">$env:TIMESFM_OFFLINE = "true"
+uv run streamlit run app.py</code></pre></div>
+            <p>Offline mode makes Hugging Face access local-only. URL and Kaggle retrieval still require a network; uncached revisions fail rather than silently downloading.</p>
+          </section>
+
+          <section id="kaggle-credentials" class="prose-section" role="group">
+            <h3>9. Kaggle credentials</h3>
+            <p>The app accepts either current <code>KAGGLE_API_TOKEN</code> authentication or the legacy <code>KAGGLE_USERNAME</code> plus <code>KAGGLE_KEY</code> pair. Set one mechanism, keep it outside the repository, and consult the <a href="https://github.com/Kaggle/kaggle-api">official Kaggle API client</a>.</p>
+          </section>
+
+          <section id="installation-verification" class="prose-section" role="group">
+            <h3>10. Installation verification</h3>
+            <p>Run model-free checks before downloading weights:</p>
+            <div class="code-block" data-language="PowerShell"><div class="code-head"><span>Quality gate</span></div><pre><code class="language-powershell">uv run pytest
+uv run ruff check src tests app.py
+uv run ruff format --check src tests app.py</code></pre></div>
+            <p>Then start Streamlit and perform a short manual forecast. The first run may take longer because the checkpoint must be downloaded and initialized.</p>
+          </section>
+
+          <section id="installation-troubleshooting" class="prose-section" role="group">
+            <h3>11. Troubleshooting matrix</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Symptom</th><th scope="col">Likely cause</th><th scope="col">Corrective action</th></tr></thead><tbody>
+              <tr><td><code>No solution found</code></td><td>Wrong Python or incompatible platform</td><td>Install Python 3.14, then retry locked sync</td></tr>
+              <tr><td>CUDA requested but unavailable</td><td>No usable device/runtime</td><td>Choose Auto/CPU; inspect <code>nvidia-smi</code> and Torch</td></tr>
+              <tr><td>Checkpoint loading failed</td><td>Network, token, cache, or device</td><td>Disable offline, verify token/cache/device</td></tr>
+              <tr><td>Offline file not found</td><td>Revision was never cached</td><td>Run one online forecast first</td></tr>
+              <tr><td>Activation blocked</td><td>PowerShell execution policy</td><td>Use <code>uv run</code> or the venv Python directly</td></tr>
+              <tr><td>Slow first forecast</td><td>Download and initialization</td><td>Allow first completion; later runs reuse cache</td></tr>
+              <tr><td>High disk use</td><td>PyTorch, weights, Windows cache behavior</td><td>Move <code>TIMESFM_APP_CACHE</code> to a larger volume</td></tr>
+            </tbody></table></div>
+            <div class="references"><h4 id="installation-references">References</h4><ul>
+              <li><a href="https://docs.astral.sh/uv/getting-started/installation/">uv installation</a> and <a href="https://docs.astral.sh/uv/concepts/projects/sync/">project synchronization</a></li>
+              <li><a href="https://docs.python.org/3/library/venv.html">Python venv</a> and <a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">Conda environments</a></li>
+              <li><a href="https://pytorch.org/get-started/locally/">PyTorch installation selector</a></li>
+              <li><a href="https://huggingface.co/docs/huggingface_hub/guides/manage-cache">Hugging Face cache management</a></li>
+            </ul></div>
+          </section>
+          <div class="chapter-end">Runtime ready</div>
+        </article>
+        <article id="data-handling" class="chapter" data-chapter="Data Handling" aria-labelledby="data-title">
+          <header class="chapter-header">
+            <div class="chapter-number">CHAPTER 03 / 04</div>
+            <h2 id="data-title">Data Handling</h2>
+            <p class="chapter-intro">Turn local or remote tables into the exact regular, univariate, ordered context required by the application—without hiding data-quality assumptions.</p>
+          </header>
+
+          <section id="ingestion-architecture" class="prose-section" role="group">
+            <h3>1. Ingestion architecture</h3>
+            <figure class="flow-figure"><figcaption>Every source converges on the same contract</figcaption><div class="flow">
+              <div class="flow-node"><strong>Resolve</strong>Upload, URL, Kaggle, or Hugging Face</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Read</strong>CSV, Parquet, or XLSX to DataFrame</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Map</strong>Select worksheet, date, and target</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Validate</strong>Parse, sort, regularize, and slice</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Request</strong>Build a TimesFM-ready series</div>
+            </div></figure>
+            <p>All sources become a <code>pandas.DataFrame</code>. Identical timestamp and target validation then applies regardless of where the bytes originated.</p>
+          </section>
+
+          <section id="supported-formats" class="prose-section" role="group">
+            <h3>2. Supported file formats</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Format</th><th scope="col">Reader</th><th scope="col">Strength</th><th scope="col">Watch for</th></tr></thead><tbody>
+              <tr><td>CSV</td><td><code>pandas.read_csv</code></td><td>Portable and inspectable</td><td>Delimiters, locale numbers, ambiguous dates</td></tr>
+              <tr><td>Parquet</td><td><code>pandas.read_parquet</code></td><td>Typed, compressed, efficient</td><td>Valid signature and PyArrow required</td></tr>
+              <tr><td>XLSX</td><td><code>pandas.read_excel</code></td><td>Familiar multi-sheet workbooks</td><td>Formula results, merged headers, memory expansion</td></tr>
+            </tbody></table></div>
+            <p>Legacy XLS, TSV, JSON, ZIP archives, and database connections are not supported. Convert them first.</p>
+            <h4 id="recommended-table-shape">Recommended table shape</h4>
+            <div class="code-block" data-language="Text"><div class="code-head"><span>CSV</span></div><pre><code class="language-plaintext">timestamp,target
+2026-01-01 00:00:00,105.4
+2026-01-01 01:00:00,103.8
+2026-01-01 02:00:00,107.1</code></pre></div>
+            <p>Extra columns are allowed, but the app uses one date column and one numeric target per forecast.</p>
+          </section>
+
+          <section id="local-files" class="prose-section" role="group">
+            <h3>3. Loading local files</h3>
+            <ol>
+              <li>Start the app with <code>uv run streamlit run app.py</code>.</li>
+              <li>Open <strong>Data Loading</strong> and choose one or more supported files.</li>
+              <li>For each XLSX file, choose a worksheet.</li>
+              <li>Review the preview and detected datetime candidates.</li>
+              <li>Select the date column, target column, and whether values must be non-negative.</li>
+            </ol>
+            <p>Uploads are content-hashed and cached below <code>.cache/data</code>. Multiple files retain independent mappings.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Multi-file behavior</th><th scope="col">Result</th></tr></thead><tbody>
+              <tr><td>Same horizon and non-negative setting</td><td>Compatible requests can share a batch</td></tr>
+              <tr><td>Different date/target names</td><td>Supported through per-file mappings</td></tr>
+              <tr><td>One invalid file</td><td>Individual retry isolates the failure</td></tr>
+              <tr><td>Same filename and content again</td><td>Existing content-addressed path is reused</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Filename remains part of cache identity.</strong> Renamed identical bytes share a hash directory but retain distinct cached filenames.</aside>
+          </section>
+
+          <section id="public-url" class="prose-section" role="group">
+            <h3>4. Loading a public URL</h3>
+            <p>Paste a direct HTTP or HTTPS URL ending in CSV, Parquet, or XLSX. The resolver treats every remote file as untrusted.</p>
+            <figure class="flow-figure"><figcaption>Remote source trust boundary</figcaption><div class="flow">
+              <div class="flow-node"><strong>Scheme</strong>Allow HTTP/S only; reject credentials</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Network</strong>Resolve host; block private/special IPs</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Stream</strong>Revalidate redirects and enforce 200 MiB</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Validate</strong>Extension and binary signature</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Cache</strong>Hash bytes and strip query metadata</div>
+            </div></figure>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Control</th><th scope="col">Purpose</th></tr></thead><tbody>
+              <tr><td>HTTP/S allowlist</td><td>Reject local file and custom schemes</td></tr>
+              <tr><td>No embedded credentials</td><td>Prevent username/password leakage</td></tr>
+              <tr><td>DNS/IP validation</td><td>Block private, loopback, link-local, multicast, reserved, and unspecified addresses</td></tr>
+              <tr><td>Redirect revalidation</td><td>Validate every destination up to the redirect limit</td></tr>
+              <tr><td>200 MiB streaming limit</td><td>Bound network and cache use</td></tr>
+              <tr><td>Signature checks</td><td>Validate Parquet/XLSX magic bytes</td></tr>
+              <tr><td>Query stripping</td><td>Avoid retaining signed query parameters</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Compressed expansion remains local.</strong> A compact workbook or Parquet file can consume significantly more memory during parsing.</aside>
+          </section>
+
+          <section id="datetime-processing" class="prose-section" role="group">
+            <h3>5. Datetime detection and parsing</h3>
+            <p>The loader ranks likely datetime columns rather than silently locking a choice. Native datetime columns rank strongly. String/object columns are sampled and considered when a high proportion parses; date-like names improve ranking. Numeric columns are not guessed because integers may be IDs, years, or epochs.</p>
+            <h4 id="timestamp-invariants">5.1 Required timestamp invariants</h4>
+            <figure class="flow-figure"><figcaption>Timestamp validation sequence</figcaption><div class="flow">
+              <div class="flow-node"><strong>Parse all</strong>No invalid or missing timestamps</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Stable sort</strong>Ascending chronological order</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Unique</strong>Exactly one row per timestamp</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Frequency</strong>Infer or apply an offset</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Regular</strong>Actual index equals expected grid</div>
+            </div></figure>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Problem</th><th scope="col">Example</th><th scope="col">Repair</th></tr></thead><tbody>
+              <tr><td>Invalid text</td><td><code>not-a-date</code></td><td>Correct or deliberately remove the source row</td></tr>
+              <tr><td>Duplicate timestamp</td><td>Two readings at 09:00</td><td>Aggregate or select using domain rules</td></tr>
+              <tr><td>Missing grid point</td><td>Hourly data jumps 09:00 to 11:00</td><td>Reindex hourly and decide target filling</td></tr>
+              <tr><td>Mixed timezone semantics</td><td>Local and UTC strings</td><td>Convert explicitly to one timezone</td></tr>
+              <tr><td>Too few points</td><td>Only two timestamps</td><td>Select a valid frequency manually</td></tr>
+            </tbody></table></div>
+            <h4 id="frequency-inference">5.2 Frequency inference</h4>
+            <p>When no frequency is selected, <code>pandas.infer_freq</code> examines the complete index. The app builds an expected <code>date_range</code> and requires exact equality. Calendar-aware offsets such as month-end remain calendar-aware.</p>
+            <aside class="callout" role="note"><strong>⚠ A frequency choice is validation, not repair.</strong> Selecting daily does not fill missing daily rows; mismatches are rejected.</aside>
+          </section>
+
+          <section id="missing-values" class="prose-section" role="group">
+            <h3>6. Target conversion and missing values</h3>
+            <p>The selected target is converted with <code>pandas.to_numeric(..., errors="coerce")</code>. Non-numeric cells therefore enter the same validation path as explicit nulls.</p>
+            <figure class="flow-figure"><figcaption>Target-quality decision path</figcaption><div class="flow">
+              <div class="flow-node"><strong>Numeric</strong>Coerce target values</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Finite</strong>Reject infinity and all-null targets</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Origin</strong>Reject trailing missing values</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Context</strong>Trim leading gaps and select latest C</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Internal gaps</strong>Report; TimesFM interpolates</div>
+            </div></figure>
+            <h4 id="interpolation-math">6.1 Interpolation mathematics</h4>
+            <p>For a missing value between finite observations <var>y</var><sub>a</sub> and <var>y</var><sub>b</sub>, linear interpolation estimates:</p>
+            <div class="equation" role="math" aria-label="Interpolated y k equals y a plus the time fraction times y b minus y a">
+              <math display="block"><mrow><msub><mover><mi>y</mi><mo>~</mo></mover><mi>k</mi></msub><mo>=</mo><msub><mi>y</mi><mi>a</mi></msub><mo>+</mo><mfrac><mrow><msub><mi>t</mi><mi>k</mi></msub><mo>−</mo><msub><mi>t</mi><mi>a</mi></msub></mrow><mrow><msub><mi>t</mi><mi>b</mi></msub><mo>−</mo><msub><mi>t</mi><mi>a</mi></msub></mrow></mfrac><mo>(</mo><msub><mi>y</mi><mi>b</mi></msub><mo>−</mo><msub><mi>y</mi><mi>a</mi></msub><mo>)</mo></mrow></math>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Missing pattern</th><th scope="col">Behavior</th><th scope="col">Rationale</th></tr></thead><tbody>
+              <tr><td>Leading target gaps</td><td>Trim and warn</td><td>No left anchor; avoid inventing history</td></tr>
+              <tr><td>Internal target gaps</td><td>Preserve, count, then TimesFM interpolates</td><td>Neighboring values anchor interpolation</td></tr>
+              <tr><td>Trailing target gap</td><td>Reject</td><td>Forecast origin is unclear</td></tr>
+              <tr><td>Entire target missing</td><td>Reject</td><td>No usable signal</td></tr>
+              <tr><td>Infinity</td><td>Reject</td><td>Not a valid observation</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Interpolation is an assumption.</strong> Long gaps can fabricate smooth behavior. Measure duration and prefer domain-specific imputation when appropriate.</aside>
+          </section>
+
+          <section id="kaggle-datasets" class="prose-section" role="group">
+            <h3>7. Retrieving Kaggle datasets</h3>
+            <ol>
+              <li>Configure <code>KAGGLE_API_TOKEN</code> or the legacy username/key pair.</li>
+              <li>Search or enter an <code>owner/dataset</code> handle.</li>
+              <li>Resolve the dataset; recursively filter to supported files.</li>
+              <li>Select files and configure their mappings.</li>
+            </ol>
+            <div class="code-block" data-language="Text"><div class="code-head"><span>Kaggle handles</span></div><pre><code class="language-plaintext">owner/dataset
+owner/dataset/versions/3</code></pre></div>
+            <p>The versioned form records version 3 when available. Archives may contain unrelated tables, so file choice remains explicit.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Failure</th><th scope="col">Meaning</th></tr></thead><tbody>
+              <tr><td>Credentials required</td><td>No valid token or legacy pair reached the app</td></tr>
+              <tr><td>Handle must use owner/dataset</td><td>Identifier shape is invalid</td></tr>
+              <tr><td>No supported tabular files</td><td>Download contained no CSV, Parquet, or XLSX</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section id="hugging-face-datasets" class="prose-section" role="group">
+            <h3>8. Retrieving Hugging Face datasets</h3>
+            <p>Public datasets can be searched without a token; private or gated repositories require read access.</p>
+            <figure class="flow-figure"><figcaption>Hugging Face provenance path</figcaption><div class="flow">
+              <div class="flow-node"><strong>Search</strong>Choose a dataset repo ID</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>List</strong>Filter supported repository files</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Pin</strong>Resolve revision to commit SHA</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Download</strong>Cache selected file with provenance</div>
+            </div></figure>
+            <p>The provider uses <code>HfApi</code> and <code>hf_hub_download</code>. The locator is retained as <code>hf://datasets/&lt;repo&gt;/&lt;file&gt;</code> with the resolved revision.</p>
+            <h4 id="hf-offline-data">Offline behavior</h4>
+            <p>With <code>TIMESFM_OFFLINE=true</code>, downloads set <code>local_files_only=True</code>. The exact model or dataset revision must already exist in the selected cache. Save the repository ID, filename, and revision for reproducibility.</p>
+          </section>
+
+          <section id="data-quality-workflow" class="prose-section" role="group">
+            <h3>9. Data-quality workflow</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Gate</th><th scope="col">Question</th><th scope="col">Evidence</th></tr></thead><tbody>
+              <tr><td>Semantics</td><td>Does one row represent one intended period?</td><td>Data dictionary/source owner</td></tr>
+              <tr><td>Timestamp</td><td>Are timezone and calendar meaning explicit?</td><td>Preview and source metadata</td></tr>
+              <tr><td>Uniqueness</td><td>Exactly one target per timestamp?</td><td>Duplicate count equals zero</td></tr>
+              <tr><td>Regularity</td><td>Does every expected period exist?</td><td>Expected index equals actual</td></tr>
+              <tr><td>Missingness</td><td>Are gap causes and imputation acceptable?</td><td>Gap count and duration</td></tr>
+              <tr><td>Context</td><td>Does the tail include representative cycles?</td><td>Plot and domain review</td></tr>
+              <tr><td>Leakage</td><td>Are future values absent from transforms?</td><td>Pipeline review</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section id="worked-repair" class="prose-section" role="group">
+            <h3>10. Worked repair example</h3>
+            <p>Suppose hourly readings contain two rows at 10:00 and no row at 11:00. Do not merely select hourly frequency. Decide what duplicates mean, aggregate if appropriate, create the full grid, and then impute the missing target.</p>
+            <div class="code-block" data-language="Python"><div class="code-head"><span>Illustrative repair policy</span></div><pre><code class="language-python">frame["timestamp"] = pandas.to_datetime(frame["timestamp"], utc=True)
+frame["target"] = pandas.to_numeric(frame["target"], errors="coerce")
+frame = frame.groupby("timestamp", as_index=False)["target"].mean()
+frame = frame.set_index("timestamp").asfreq("h")
+frame["target"] = frame["target"].interpolate(method="time")
+frame = frame.reset_index()</code></pre></div>
+            <p>Mean aggregation and interpolation are correct only when they match the measurement process.</p>
+          </section>
+
+          <section id="data-troubleshooting" class="prose-section" role="group">
+            <h3>11. Troubleshooting matrix</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Message</th><th scope="col">Cause</th><th scope="col">Action</th></tr></thead><tbody>
+              <tr><td>Unsupported dataset file</td><td>Extension outside supported formats</td><td>Convert the source</td></tr>
+              <tr><td>Invalid timestamps</td><td>At least one parse failed</td><td>Inspect and standardize bad rows</td></tr>
+              <tr><td>Duplicate timestamps</td><td>More than one row per period</td><td>Aggregate or select using domain rules</td></tr>
+              <tr><td>Could not infer frequency</td><td>Too few or irregular timestamps</td><td>Repair grid or choose frequency manually</td></tr>
+              <tr><td>Timestamps are not regular</td><td>Frequency conflicts with index</td><td>Reindex/repair first</td></tr>
+              <tr><td>Trailing missing target</td><td>Latest target is null/non-numeric</td><td>Correct it or end context earlier</td></tr>
+              <tr><td>Unsafe URL address</td><td>Private/special network target</td><td>Use an approved public host or local upload</td></tr>
+              <tr><td>HF download failed offline</td><td>Revision not cached</td><td>Fetch once online with the same cache root</td></tr>
+            </tbody></table></div>
+            <div class="references"><h4 id="data-references">References</h4><ul>
+              <li><a href="https://pandas.pydata.org/docs/user_guide/io.html">pandas I/O tools</a>, <a href="https://pandas.pydata.org/docs/user_guide/timeseries.html">time-series guide</a>, and <a href="https://pandas.pydata.org/docs/user_guide/missing_data.html">missing-data guide</a></li>
+              <li><a href="https://huggingface.co/docs/huggingface_hub/guides/download">Hugging Face downloads</a> and <a href="https://huggingface.co/docs/hub/datasets-overview">Dataset Hub</a></li>
+              <li><a href="https://github.com/Kaggle/kaggle-api">Kaggle API client</a></li>
+              <li><a href="https://github.com/google-research/timesfm">TimesFM source and documentation</a></li>
+            </ul></div>
+          </section>
+          <div class="chapter-end">Data contract ready</div>
+        </article>
+        <article id="timesfm-mastery" class="chapter" data-chapter="TimesFM Mastery" aria-labelledby="mastery-title">
+          <header class="chapter-header">
+            <div class="chapter-number">CHAPTER 04 / 04</div>
+            <h2 id="mastery-title">TimesFM Mastery</h2>
+            <p class="chapter-intro">Connect every sidebar control to model mechanics, interpret the distribution correctly, manage resource limits, and design a defensible evaluation.</p>
+          </header>
+
+          <section id="prediction-path" class="prose-section" role="group">
+            <h3>1. End-to-end prediction path</h3>
+            <figure class="flow-figure"><figcaption>From prepared context to structured forecast</figcaption><div class="flow">
+              <div class="flow-node"><strong>Slice</strong>Keep latest C observations as 1-D float32</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Compile</strong>Round context to 32 and horizon to 128</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Forecast</strong>Run a compatible TimesFM batch</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Parse</strong>Point B×H; distribution B×H×10</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Present</strong>Future index, chart, and quantile table</div>
+            </div></figure>
+            <p>The checkpoint is lazy-loaded and cached as a Streamlit resource. One process owns one model and serializes compilation/inference through a lock.</p>
+          </section>
+
+          <section id="context-length" class="prose-section" role="group">
+            <h3>2. Context length</h3>
+            <p><strong>Context length</strong> <var>C</var> is the maximum number of recent observations retained. Older values are excluded. A shorter file contributes all usable observations, but at least two are required.</p>
+            <h4 id="context-cycles">2.1 Choosing context by cycles</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Data frequency</th><th scope="col">Candidate context</th><th scope="col">Patterns represented</th></tr></thead><tbody>
+              <tr><td>Hourly</td><td>168</td><td>One weekly cycle</td></tr>
+              <tr><td>Hourly</td><td>720</td><td>Roughly one month and several weeks</td></tr>
+              <tr><td>Daily</td><td>365</td><td>One annual cycle</td></tr>
+              <tr><td>Weekly</td><td>104</td><td>Two annual cycles</td></tr>
+              <tr><td>Monthly</td><td>60</td><td>Five annual cycles</td></tr>
+            </tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Context too short</th><th scope="col">Context too long</th></tr></thead><tbody>
+              <tr><td>Seasonal pattern may be absent</td><td>Old regimes may dilute current dynamics</td></tr>
+              <tr><td>Recent anomalies dominate</td><td>More compile time and memory</td></tr>
+              <tr><td>Fewer examples of peaks/troughs</td><td>Higher OOM risk</td></tr>
+            </tbody></table></div>
+            <p>The app warns below 32 observations because that is less than one full input patch.</p>
+          </section>
+
+          <section id="forecast-horizon" class="prose-section" role="group">
+            <h3>3. Forecast horizon</h3>
+            <p><strong>Forecast horizon</strong> <var>H</var> is the number of future periods requested, from 1 to 1,024. Its calendar meaning depends on frequency.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Frequency</th><th scope="col">Horizon</th><th scope="col">Calendar interpretation</th></tr></thead><tbody>
+              <tr><td>Hourly</td><td>24</td><td>One day</td></tr>
+              <tr><td>Hourly</td><td>168</td><td>One week</td></tr>
+              <tr><td>Daily</td><td>30</td><td>Approximately one month</td></tr>
+              <tr><td>Weekly</td><td>13</td><td>Approximately one quarter</td></tr>
+              <tr><td>Month-end</td><td>12</td><td>One year</td></tr>
+            </tbody></table></div>
+            <p>Long horizons compound uncertainty. A narrow interval is not evidence of calibration until historical coverage is measured.</p>
+          </section>
+
+          <section id="dimension-matching" class="prose-section" role="group">
+            <h3>4. Dimension matching and compilation buckets</h3>
+            <p>TimesFM receives a list with one 1-D numeric array per series. Arrays may have different context lengths, but each app batch shares horizon and non-negative settings.</p>
+            <div class="code-block" data-language="Python"><div class="code-head"><span>TimesFM batch contract</span></div><pre><code class="language-python">inputs = [
+    series_a.astype(numpy.float32),
+    series_b.astype(numpy.float32),
+]
+point, distribution = model.forecast(inputs=inputs, horizon=horizon)</code></pre></div>
+            <p>The application rounds dimensions to patch boundaries:</p>
+            <div class="equation" role="math" aria-label="Compile context equals 32 times ceiling of context divided by 32; compile horizon equals 128 times ceiling of horizon divided by 128">
+              <math display="block"><mtable><mtr><mtd><msub><mi>C</mi><mi>compile</mi></msub></mtd><mtd><mo>=</mo><mn>32</mn><mo>⌈</mo><mfrac><mi>C</mi><mn>32</mn></mfrac><mo>⌉</mo></mtd></mtr><mtr><mtd><msub><mi>H</mi><mi>compile</mi></msub></mtd><mtd><mo>=</mo><mn>128</mn><mo>⌈</mo><mfrac><mi>H</mi><mn>128</mn></mfrac><mo>⌉</mo></mtd></mtr></mtable></math>
+            </div>
+            <p>It then requires <strong>C<sub>compile</sub> + H<sub>compile</sub> ≤ 16,384</strong>. Since horizon 1 still compiles to 128, the UI caps context at 16,256.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Requested</th><th scope="col">Compiled</th><th scope="col">Consequence</th></tr></thead><tbody>
+              <tr><td>Context 365</td><td>384</td><td>Twelve input patches</td></tr>
+              <tr><td>Horizon 24</td><td>128</td><td>One output patch compiled; 24 returned</td></tr>
+              <tr><td>Horizon 129</td><td>256</td><td>Crosses an output boundary</td></tr>
+              <tr><td>Context 16,256 + horizon 1</td><td>16,256 + 128</td><td>Exactly reaches the limit</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Boundaries matter.</strong> A one-step increase can cross a patch boundary, trigger recompilation, and increase memory use.</aside>
+          </section>
+
+          <section id="frequency-seasonality" class="prose-section" role="group">
+            <h3>5. Frequency and seasonality</h3>
+            <p>Frequency controls the <strong>datetime contract</strong>, not a model feature. It validates historical spacing and generates future timestamps. TimesFM receives only the historical target values.</p>
+            <figure class="flow-figure"><figcaption>Two inputs, one structured result</figcaption><div class="flow">
+              <div class="flow-node"><strong>Frequency path</strong>Validate historical grid and create future DatetimeIndex</div><div class="flow-arrow" aria-hidden="true">+</div>
+              <div class="flow-node"><strong>Value path</strong>TimesFM recognizes patterns from ordered target values</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Result</strong>Attach future timestamps to numeric forecasts</div>
+            </div></figure>
+            <p>TimesFM 2.5 removed the earlier frequency indicator. Selecting hourly, daily, weekly, or monthly does not provide a seasonality token. Calendar-aware pandas aliases still preserve future date semantics such as month-end.</p>
+            <aside class="callout" role="note"><strong>⚠ Labels cannot create information.</strong> Never mark weekly observations as daily to obtain daily-looking output.</aside>
+          </section>
+
+          <section id="runtime-configuration" class="prose-section" role="group">
+            <h3>6. Runtime configuration</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Option</th><th scope="col">Value</th><th scope="col">Purpose</th></tr></thead><tbody>
+              <tr><td><code>normalize_inputs</code></td><td>True</td><td>Normalize scale before inference</td></tr>
+              <tr><td><code>per_core_batch_size</code></td><td>1</td><td>Conservative memory use</td></tr>
+              <tr><td><code>use_continuous_quantile_head</code></td><td>True</td><td>Produce quantiles</td></tr>
+              <tr><td><code>force_flip_invariance</code></td><td>True</td><td>Stabilize sign-flipped behavior</td></tr>
+              <tr><td><code>infer_is_positive</code></td><td>Per-series setting</td><td>Constrain logically non-negative series</td></tr>
+              <tr><td><code>fix_quantile_crossing</code></td><td>True</td><td>Preserve ordered quantiles</td></tr>
+            </tbody></table></div>
+            <p>The pinned checkpoint comes from <code>src/timesfm_app/config.py</code>. <code>torch_compile</code> is disabled during load for predictable local startup.</p>
+          </section>
+
+          <section id="understanding-outputs" class="prose-section" role="group">
+            <h3>7. Understanding outputs</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Output</th><th scope="col">Shape</th><th scope="col">App use</th></tr></thead><tbody>
+              <tr><td>Point</td><td>(B, H)</td><td>q50 forecast path</td></tr>
+              <tr><td>Distribution</td><td>(B, H, 10)</td><td>Mean and q10–q90</td></tr>
+            </tbody></table></div>
+            <div class="table-wrap"><table><caption>Distribution channel mapping</caption><thead><tr><th scope="col">Channel</th><th scope="col">Column</th><th scope="col">Channel</th><th scope="col">Column</th></tr></thead><tbody>
+              <tr><td>0</td><td>Mean</td><td>5</td><td>q50</td></tr>
+              <tr><td>1</td><td>q10</td><td>6</td><td>q60</td></tr>
+              <tr><td>2</td><td>q20</td><td>7</td><td>q70</td></tr>
+              <tr><td>3</td><td>q30</td><td>8</td><td>q80</td></tr>
+              <tr><td>4</td><td>q40</td><td>9</td><td>q90</td></tr>
+            </tbody></table></div>
+            <p>The runtime rejects unexpected shapes or non-finite values rather than displaying misaligned data.</p>
+            <h4 id="quantile-interpretation">7.1 Quantile interpretation</h4>
+            <p>q10 and q90 estimate the 10th and 90th predictive percentiles. Interval width is useful, but calibration must be measured empirically:</p>
+            <div class="equation" role="math" aria-label="Coverage equals one over N times the sum of indicators that actual y lies between q ten and q ninety">
+              <math display="block"><mrow><mover><mi>coverage</mi><mo>^</mo></mover><mo>=</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mi mathvariant="normal">𝟙</mi><mo>[</mo><msub><mi>y</mi><mi>i</mi></msub><mo>∈</mo><mo>[</mo><msub><mover><mi>y</mi><mo>^</mo></mover><mrow><mn>0.1</mn><mo>,</mo><mi>i</mi></mrow></msub><mo>,</mo><msub><mover><mi>y</mi><mo>^</mo></mover><mrow><mn>0.9</mn><mo>,</mo><mi>i</mi></mrow></msub><mo>]</mo><mo>]</mo></mrow></math>
+            </div>
+            <p>Coverage near 0.8 across representative holdouts supports an 80% interval calibration claim; one chart does not.</p>
+          </section>
+
+          <section id="interactive-workflow" class="prose-section" role="group">
+            <h3>8. Interactive forecasting workflow</h3>
+            <ol>
+              <li>Load and map datasets in <strong>Data Loading</strong>.</li>
+              <li>Set context, horizon, frequency, and device in the sidebar.</li>
+              <li>Mark non-negative only when negative values are impossible.</li>
+              <li>Run <strong>Interactive Forecasting Charts</strong>.</li>
+              <li>Inspect chart, quality messages, device, latency, and output table.</li>
+            </ol>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Visual element</th><th scope="col">Meaning</th></tr></thead><tbody>
+              <tr><td>Gray line</td><td>Historical context</td></tr>
+              <tr><td>Blue line and markers</td><td>Future q50 forecast</td></tr>
+              <tr><td>Light blue band</td><td>q10–q90 interval</td></tr>
+              <tr><td>Shaded future region</td><td>Forecast period</td></tr>
+              <tr><td>Unified hover</td><td>Values aligned at each timestamp</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ q50 is not the mean.</strong> Skewed predictive distributions can have different mean and median values; the table preserves both.</aside>
+          </section>
+
+          <section id="manual-simulator" class="prose-section" role="group">
+            <h3>9. Manual simulator</h3>
+            <p>Enter comma- or newline-separated values for the shortest route to a forecast:</p>
+            <div class="code-block" data-language="Text"><div class="code-head"><span>Manual sequence</span></div><pre><code class="language-plaintext">10, 12, 15, 14, 18, 21, 19, 24</code></pre></div>
+            <p>The parser splits commas/line breaks, trims whitespace, requires at least two finite values, reports the position of invalid tokens, and creates a 1-D <code>float32</code> array. It does not fabricate timestamps.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Input</th><th scope="col">Result</th></tr></thead><tbody>
+              <tr><td><code>10, 12, 15</code></td><td>Valid</td></tr>
+              <tr><td>One number per line</td><td>Valid</td></tr>
+              <tr><td><code>10, missing, 15</code></td><td>Error at position 2</td></tr>
+              <tr><td><code>10, NaN, 15</code></td><td>Non-finite error</td></tr>
+              <tr><td><code>10</code></td><td>At least two values required</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section id="parameter-recipes" class="prose-section" role="group">
+            <h3>10. Practical parameter recipes</h3>
+            <h4 id="hourly-traffic">Hourly traffic</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Setting</th><th scope="col">Start</th><th scope="col">Reason</th></tr></thead><tbody>
+              <tr><td>Context</td><td>672</td><td>Four weekly cycles</td></tr><tr><td>Horizon</td><td>24 or 168</td><td>One day or week</td></tr><tr><td>Frequency</td><td>Hourly</td><td>Hourly future grid</td></tr><tr><td>Non-negative</td><td>Yes</td><td>Traffic counts cannot be negative</td></tr>
+            </tbody></table></div>
+            <h4 id="daily-demand">Daily demand</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Setting</th><th scope="col">Start</th><th scope="col">Reason</th></tr></thead><tbody>
+              <tr><td>Context</td><td>730</td><td>Two annual cycles if available</td></tr><tr><td>Horizon</td><td>30 or 90</td><td>Monthly/quarterly planning</td></tr><tr><td>Frequency</td><td>Daily</td><td>Daily future index</td></tr><tr><td>Non-negative</td><td>Usually yes</td><td>Confirm target semantics</td></tr>
+            </tbody></table></div>
+            <h4 id="monthly-revenue">Monthly revenue</h4>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Setting</th><th scope="col">Start</th><th scope="col">Reason</th></tr></thead><tbody>
+              <tr><td>Context</td><td>60–120</td><td>Five to ten annual cycles</td></tr><tr><td>Horizon</td><td>12</td><td>One year</td></tr><tr><td>Frequency</td><td>Matching month boundary</td><td>Preserve calendar convention</td></tr><tr><td>Non-negative</td><td>Domain-dependent</td><td>Returns may permit negatives</td></tr>
+            </tbody></table></div>
+            <p>Recipes expose cycles; they do not replace backtesting. Compare nearby context values and evaluate stability.</p>
+          </section>
+
+          <section id="oom-control" class="prose-section" role="group">
+            <h3>11. Performance and OOM control</h3>
+            <figure class="flow-figure"><figcaption>Resource reduction order</figcaption><div class="flow">
+              <div class="flow-node"><strong>Context</strong>Keep fewer relevant cycles</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Horizon</strong>Drop below an output boundary</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Batch</strong>Forecast fewer files together</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Device</strong>Close GPU workloads or choose CPU</div>
+            </div></figure>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Lever</th><th scope="col">Memory effect</th><th scope="col">Tradeoff</th></tr></thead><tbody>
+              <tr><td>Shorter context</td><td>Lower</td><td>May remove cycles</td></tr>
+              <tr><td>Shorter horizon</td><td>Lower, especially across 128-step boundaries</td><td>Less future coverage</td></tr>
+              <tr><td>Smaller batch</td><td>Lower</td><td>More sequential runs</td></tr>
+              <tr><td>CPU</td><td>Removes GPU-memory constraint</td><td>Slower; consumes host RAM</td></tr>
+            </tbody></table></div>
+            <aside class="callout" role="note"><strong>⚠ Keep truncation explicit.</strong> Do not silently cut source data outside the selected context; parameter changes must remain reproducible.</aside>
+          </section>
+
+          <section id="evaluation" class="prose-section" role="group">
+            <h3>12. Evaluation before production</h3>
+            <p>The app is a simulator, not a backtesting system. A defensible evaluation repeats historical cutoffs:</p>
+            <figure class="flow-figure"><figcaption>Rolling-origin evaluation</figcaption><div class="flow">
+              <div class="flow-node"><strong>Cutoff T</strong>Hide the next H actual values</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Forecast</strong>Run context through T</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Compare</strong>Measure forecast against actual future</div><div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node"><strong>Repeat</strong>Aggregate metrics across cutoffs</div>
+            </div></figure>
+            <div class="equation" role="math" aria-label="Mean absolute error and root mean squared error">
+              <math display="block"><mtable><mtr><mtd><mi>MAE</mi></mtd><mtd><mo>=</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><mo>∑</mo><mo>|</mo><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mover><mi>y</mi><mo>^</mo></mover><mi>i</mi></msub><mo>|</mo></mtd></mtr><mtr><mtd><mi>RMSE</mi></mtd><mtd><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac><mo>∑</mo><msup><mrow><mo>(</mo><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mover><mi>y</mi><mo>^</mo></mover><mi>i</mi></msub><mo>)</mo></mrow><mn>2</mn></msup></mrow></msqrt></mtd></mtr></mtable></math>
+            </div>
+            <p>Compare at least a last-value baseline and seasonal-naive forecast <strong>ŷ<sub>t</sub> = y<sub>t−s</sub></strong>. Evaluate interval coverage separately from point accuracy.</p>
+          </section>
+
+          <section id="forecast-failures" class="prose-section" role="group">
+            <h3>13. Failure matrix</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Failure</th><th scope="col">Why</th><th scope="col">Resolution</th></tr></thead><tbody>
+              <tr><td>Rounded dimensions exceed 16,384</td><td>Compile buckets violate limit</td><td>Reduce context or horizon</td></tr>
+              <tr><td>CUDA unavailable</td><td>No compatible device/runtime</td><td>Select Auto/CPU or repair CUDA</td></tr>
+              <tr><td>Batch settings conflict</td><td>Horizon or positivity differs</td><td>Run separate groups</td></tr>
+              <tr><td>Invalid output shape</td><td>Model/API contract mismatch</td><td>Confirm pinned model/package and cache</td></tr>
+              <tr><td>Non-finite forecast</td><td>Runtime validation failed</td><td>Inspect scale/missingness and retain error</td></tr>
+              <tr><td>Repeated recompilation</td><td>Compile buckets or positivity change</td><td>Reuse stable presets</td></tr>
+              <tr><td>Implausible interval</td><td>Uncertain or out-of-domain context</td><td>Validate data and compare baselines</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section id="mastery-checklist" class="prose-section" role="group">
+            <h3>14. Mastery checklist</h3>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Skill</th><th scope="col">You can now…</th></tr></thead><tbody>
+              <tr><td>Context design</td><td>Relate observations to repeated cycles and regime relevance</td></tr>
+              <tr><td>Horizon design</td><td>Translate future steps into calendar/business meaning</td></tr>
+              <tr><td>Frequency</td><td>Explain timestamp validation versus model seasonality</td></tr>
+              <tr><td>Tensor contract</td><td>State 1-D inputs and (batch, horizon, 10) output</td></tr>
+              <tr><td>Uncertainty</td><td>Distinguish q50, mean, width, and empirical coverage</td></tr>
+              <tr><td>Operations</td><td>Diagnose cache, CUDA, recompilation, and OOM failures</td></tr>
+              <tr><td>Validation</td><td>Design rolling holdouts and baseline comparisons</td></tr>
+            </tbody></table></div>
+            <div class="references"><h4 id="mastery-references">References</h4><ul>
+              <li><a href="https://github.com/google-research/timesfm">TimesFM repository, model API, and configuration</a></li>
+              <li><a href="https://arxiv.org/abs/2310.10688"><cite>A Decoder-only Foundation Model for Time-series Forecasting</cite></a></li>
+              <li><a href="https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart">Streamlit Plotly charts</a> and <a href="https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_resource">resource caching</a></li>
+              <li><a href="https://plotly.com/python/time-series/">Plotly time-series charts</a> and <a href="https://pandas.pydata.org/docs/user_guide/timeseries.html">pandas time-series guide</a></li>
+            </ul></div>
+          </section>
+          <div class="chapter-end">Mastery is measured, not claimed</div>
+        </article>
+
+        <footer>
+          <p><strong>TimesFM Zero to Master</strong> · Local-first tutorial snapshot based on TimesFM 2.5.</p>
+          <p>This independent educational interface is not an official Google product. TimesFM and third-party assets remain subject to their respective licenses.</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <div id="copy-status" class="sr-only" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      'use strict';
+
+      const root = document.documentElement;
+      const mobileDialog = document.getElementById('mobile-nav');
+      const copyStatus = document.getElementById('copy-status');
+      const chapters = [...document.querySelectorAll('article.chapter')];
+      const searchableHeadings = [...document.querySelectorAll('main h2[id], main h3[id], main h4[id]')];
+
+      function isDark() {
+        return root.dataset.theme === 'dark';
+      }
+
+      function syncThemeButtons() {
+        document.querySelectorAll('.theme-toggle').forEach((button) => {
+          button.setAttribute('aria-pressed', String(isDark()));
+          button.setAttribute('aria-label', isDark() ? 'Switch to light theme' : 'Switch to dark theme');
+          button.title = isDark() ? 'Use light theme' : 'Use dark theme';
+        });
+      }
+
+      function toggleTheme() {
+        const next = isDark() ? 'light' : 'dark';
+        root.dataset.theme = next;
+        root.classList.toggle('dark', next === 'dark');
+        localStorage.setItem('timesfm-docs-theme', next);
+        syncThemeButtons();
+      }
+
+      document.querySelectorAll('.theme-toggle').forEach((button) => button.addEventListener('click', toggleTheme));
+      syncThemeButtons();
+
+      function chapterFor(heading) {
+        return heading.closest('article')?.dataset.chapter || 'Overview';
+      }
+
+      function makeToc(target) {
+        const list = document.getElementById(target);
+        chapters.forEach((chapter) => {
+          const chapterHeading = chapter.querySelector(':scope > .chapter-header h2');
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.className = 'toc-link';
+          link.href = `#${chapter.id}`;
+          link.dataset.chapterTarget = chapter.id;
+          link.textContent = chapterHeading.textContent;
+          item.append(link);
+
+          const sublist = document.createElement('ol');
+          sublist.className = 'toc-sublist';
+          chapter.querySelectorAll(':scope > section > h3[id]').forEach((heading) => {
+            const subitem = document.createElement('li');
+            const sublink = document.createElement('a');
+            sublink.className = 'toc-link';
+            sublink.href = `#${heading.id}`;
+            sublink.textContent = heading.textContent;
+            subitem.append(sublink);
+            sublist.append(subitem);
+          });
+          item.append(sublist);
+          list.append(item);
+        });
+      }
+
+      makeToc('toc-desktop');
+      makeToc('toc-mobile');
+
+      function setActiveChapter(id) {
+        document.querySelectorAll('[data-chapter-target]').forEach((link) => {
+          if (link.dataset.chapterTarget === id) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      }
+
+      if ('IntersectionObserver' in window) {
+        const chapterObserver = new IntersectionObserver((entries) => {
+          const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          if (visible[0]) setActiveChapter(visible[0].target.id);
+        }, { rootMargin: '-18% 0px -68% 0px', threshold: [0, .1, .5] });
+        chapters.forEach((chapter) => chapterObserver.observe(chapter));
+      } else {
+        setActiveChapter(chapters[0]?.id);
+      }
+
+      function focusHeading(id) {
+        const target = document.getElementById(id);
+        if (!target) return;
+        target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+        history.pushState(null, '', `#${id}`);
+        if (mobileDialog.open) mobileDialog.close();
+      }
+
+      document.querySelectorAll('.toc').forEach((toc) => toc.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href^="#"]');
+        if (!link) return;
+        event.preventDefault();
+        focusHeading(link.getAttribute('href').slice(1));
+      }));
+
+      document.getElementById('menu-open').addEventListener('click', () => mobileDialog.showModal());
+      document.getElementById('menu-close').addEventListener('click', () => mobileDialog.close());
+
+      const headingIndex = searchableHeadings.map((heading) => ({
+        id: heading.id,
+        title: heading.textContent.trim(),
+        chapter: chapterFor(heading),
+        rank: Number(heading.tagName.slice(1)),
+      }));
+
+      function installSearch(input) {
+        const results = document.getElementById(input.getAttribute('aria-controls'));
+        let activeIndex = -1;
+        let currentMatches = [];
+
+        function closeResults() {
+          results.hidden = true;
+          input.setAttribute('aria-expanded', 'false');
+          input.removeAttribute('aria-activedescendant');
+          activeIndex = -1;
+        }
+
+        function selectResult(index) {
+          const buttons = [...results.querySelectorAll('.search-result')];
+          if (!buttons.length) return;
+          activeIndex = (index + buttons.length) % buttons.length;
+          buttons.forEach((button, position) => button.setAttribute('aria-selected', String(position === activeIndex)));
+          input.setAttribute('aria-activedescendant', buttons[activeIndex].id);
+          buttons[activeIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        function render() {
+          const query = input.value.trim().toLocaleLowerCase();
+          results.replaceChildren();
+          activeIndex = -1;
+          if (!query) {
+            closeResults();
+            return;
+          }
+          currentMatches = headingIndex.filter((entry) => entry.title.toLocaleLowerCase().includes(query) || entry.chapter.toLocaleLowerCase().includes(query)).slice(0, 12);
+          if (!currentMatches.length) {
+            const empty = document.createElement('p');
+            empty.className = 'px-3 py-2 text-sm text-[var(--muted)]';
+            empty.textContent = 'No matching headings.';
+            results.append(empty);
+          } else {
+            currentMatches.forEach((entry, index) => {
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.id = `${results.id}-option-${index}`;
+              button.className = 'search-result';
+              button.role = 'option';
+              button.setAttribute('aria-selected', 'false');
+              const context = document.createElement('small');
+              context.textContent = entry.chapter;
+              const label = document.createElement('span');
+              label.textContent = entry.title;
+              button.append(context, label);
+              button.addEventListener('click', () => {
+                input.value = '';
+                closeResults();
+                focusHeading(entry.id);
+              });
+              results.append(button);
+            });
+          }
+          results.hidden = false;
+          input.setAttribute('aria-expanded', 'true');
+        }
+
+        input.addEventListener('input', render);
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            selectResult(activeIndex + 1);
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            selectResult(activeIndex - 1);
+          } else if (event.key === 'Enter' && activeIndex >= 0) {
+            event.preventDefault();
+            const entry = currentMatches[activeIndex];
+            input.value = '';
+            closeResults();
+            focusHeading(entry.id);
+          } else if (event.key === 'Escape') {
+            closeResults();
+          }
+        });
+        input.addEventListener('blur', () => setTimeout(() => {
+          if (!results.matches(':hover')) closeResults();
+        }, 120));
+      }
+
+      document.querySelectorAll('.search-control').forEach(installSearch);
+
+      function activateTab(tab) {
+        const tabList = tab.closest('[role="tablist"]');
+        tabList.querySelectorAll('[role="tab"]').forEach((candidate) => {
+          const selected = candidate === tab;
+          candidate.setAttribute('aria-selected', String(selected));
+          candidate.tabIndex = selected ? 0 : -1;
+          document.getElementById(candidate.getAttribute('aria-controls')).hidden = !selected;
+        });
+      }
+
+      document.querySelectorAll('[role="tablist"]').forEach((tabList) => {
+        const tabs = [...tabList.querySelectorAll('[role="tab"]')];
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => activateTab(tab));
+          tab.addEventListener('keydown', (event) => {
+            const index = tabs.indexOf(tab);
+            let next = null;
+            if (event.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+            if (event.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+            if (event.key === 'Home') next = tabs[0];
+            if (event.key === 'End') next = tabs[tabs.length - 1];
+            if (next) {
+              event.preventDefault();
+              activateTab(next);
+              next.focus();
+            }
+          });
+        });
+      });
+
+      function fallbackCopy(text) {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.append(area);
+        area.select();
+        const copied = document.execCommand('copy');
+        area.remove();
+        return copied;
+      }
+
+      document.querySelectorAll('.code-block').forEach((block, blockIndex) => {
+        const head = block.querySelector('.code-head');
+        const code = block.querySelector('code');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'copy-button';
+        button.textContent = 'Copy';
+        button.setAttribute('aria-label', `Copy ${block.dataset.language || 'code'} example ${blockIndex + 1}`);
+        button.addEventListener('click', async () => {
+          let copied = false;
+          try {
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(code.textContent);
+              copied = true;
+            } else {
+              copied = fallbackCopy(code.textContent);
+            }
+          } catch (_error) {
+            copied = fallbackCopy(code.textContent);
+          }
+          button.textContent = copied ? 'Copied' : 'Select text';
+          copyStatus.textContent = copied ? 'Code copied to clipboard.' : 'Automatic copy was unavailable. Select the code manually.';
+          setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+        });
+        head.append(button);
+      });
+
+      const highlightCode = () => {
+        if (window.hljs) window.hljs.highlightAll();
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', highlightCode, { once: true });
+      } else {
+        highlightCode();
+      }
+
+      const progress = document.getElementById('reading-progress');
+      let progressQueued = false;
+      function updateProgress() {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        const percent = max > 0 ? Math.min(100, Math.max(0, window.scrollY / max * 100)) : 0;
+        progress.style.width = `${percent}%`;
+        progressQueued = false;
+      }
+      window.addEventListener('scroll', () => {
+        if (!progressQueued) {
+          progressQueued = true;
+          requestAnimationFrame(updateProgress);
+        }
+      }, { passive: true });
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>
