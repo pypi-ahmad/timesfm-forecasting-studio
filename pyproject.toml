@@ -36,7 +36,7 @@ sources = ["src"]
 [dependency-groups]
 dev = [
   "pytest==9.0.3",
-  "ruff==0.14.14",
+  "ruff==0.15.22",
 ]
 
 [[tool.uv.index]]
