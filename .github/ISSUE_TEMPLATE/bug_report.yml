@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible application defect
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect. Remove credentials, private data, and signed URL query strings before submitting.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: This report does not contain a vulnerability or sensitive data.
+          required: true
+        - label: I can reproduce this on the latest default branch.
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+      placeholder: A concise description of the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include the exact command, UI path, and smallest safe dataset or manual sequence.
+      placeholder: |
+        1. Run ...
+        2. Load ...
+        3. Select ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output
+      description: Paste the complete sanitized error or traceback.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python and uv versions
+      placeholder: Python 3.14.x; uv 0.x.y
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device selection
+      options:
+        - Auto
+        - CPU
+        - CUDA
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: parameters
+    attributes:
+      label: Forecast parameters
+      description: Context, horizon, frequency, and non-negative setting when relevant.
+      placeholder: context=720, horizon=24, frequency=h, non_negative=true
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Sanitized screenshots, public dataset links, or other relevant details.
+    validations:
+      required: false

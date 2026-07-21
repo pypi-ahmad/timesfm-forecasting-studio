@@ -1,0 +1,35 @@
+name: Documentation issue
+description: Report incorrect, missing, or unclear documentation
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: File, heading, or URL.
+      placeholder: docs/tutorial/03_data_engineering.md — Missing values
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is incorrect or unclear?
+      description: Quote only the smallest relevant excerpt and explain the reader impact.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Suggested correction
+      description: Include a primary source when the correction concerns an external API or model fact.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safe
+    attributes:
+      label: Safety check
+      options:
+        - label: This issue contains no credentials, private data, or vulnerability details.
+          required: true
