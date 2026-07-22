@@ -85,6 +85,53 @@ class ForecastRequest:
 
 
 @dataclass(frozen=True)
+class CovariateForecastRequest:
+    values: np.ndarray
+    horizon: int
+    dynamic_numerical: dict[str, np.ndarray] = field(default_factory=dict)
+    dynamic_categorical: dict[str, list[object]] = field(default_factory=dict)
+    static_numerical: dict[str, float] = field(default_factory=dict)
+    static_categorical: dict[str, object] = field(default_factory=dict)
+    timestamps: pd.DatetimeIndex | None = None
+    frequency: str | None = None
+    mode: str = "xreg + timesfm"
+    non_negative: bool = False
+    compile_context: int = field(init=False)
+    compile_horizon: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        values = np.asarray(self.values, dtype=np.float32)
+        if values.ndim != 1 or len(values) < 2 or not np.isfinite(values).all():
+            raise ValueError("Covariate target context must contain at least two finite values.")
+        if self.horizon < 1 or self.horizon > MAX_QUANTILE_HORIZON:
+            raise ValueError(f"Horizon must be between 1 and {MAX_QUANTILE_HORIZON:,}.")
+        if self.mode not in {"xreg + timesfm", "timesfm + xreg"}:
+            raise ValueError("XReg mode must be 'xreg + timesfm' or 'timesfm + xreg'.")
+        if not any(
+            (
+                self.dynamic_numerical,
+                self.dynamic_categorical,
+                self.static_numerical,
+                self.static_categorical,
+            )
+        ):
+            raise ValueError("At least one covariate is required.")
+        expected = len(values) + self.horizon
+        for name, covariate in {**self.dynamic_numerical, **self.dynamic_categorical}.items():
+            if len(covariate) != expected:
+                raise ValueError(
+                    f"Dynamic covariate {name!r} must span context plus horizon ({expected} rows)."
+                )
+        compile_context = ceil(len(values) / INPUT_PATCH_LENGTH) * INPUT_PATCH_LENGTH
+        compile_horizon = ceil(self.horizon / OUTPUT_PATCH_LENGTH) * OUTPUT_PATCH_LENGTH
+        if compile_context + compile_horizon > TIMESFM_CONTEXT_LIMIT:
+            raise ValueError("Rounded context plus horizon exceeds TimesFM limit of 16,384 points.")
+        object.__setattr__(self, "values", values)
+        object.__setattr__(self, "compile_context", compile_context)
+        object.__setattr__(self, "compile_horizon", compile_horizon)
+
+
+@dataclass(frozen=True)
 class ForecastResult:
     future_timestamps: pd.DatetimeIndex | None
     point: np.ndarray

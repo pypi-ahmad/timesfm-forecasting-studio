@@ -11,9 +11,12 @@ A local-first Streamlit application for **zero-shot, univariate forecasting** wi
 | Data sources | Multi-file upload, HTTP/S URL, Kaggle, Hugging Face Hub |
 | Formats | CSV, Parquet, XLSX with worksheet selection |
 | Preparation | Datetime detection, numeric coercion, regular-grid validation, context slicing |
-| Forecasting | TimesFM 2.5 zero-shot point, mean, and q10–q90 forecasts |
+| Forecasting | TimesFM 2.5 standard and XReg covariate forecasts with point, mean, and q10–q90 outputs |
 | Hardware | Auto, CPU, or NVIDIA CUDA selection |
-| Visualization | Interactive Plotly history, q50 path, and q10–q90 band |
+| EDA | Quality, distribution, trend, seasonality, ACF, STL, ADF, and robust outlier diagnostics |
+| Evaluation | 1–10 rolling-origin windows, point/probabilistic metrics, latency, and interval anomalies |
+| Export | Direct CSV plus self-contained HTML, vector PDF, and complete ZIP report bundles |
+| Visualization | Interactive Plotly forecast, EDA, backtest, and anomaly charts |
 | Playground | Comma/newline-separated numeric sequence forecasting |
 | Local operation | Content-addressed data cache and offline model reuse |
 
@@ -72,6 +75,28 @@ Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
 ```
 
 `.streamlit/secrets.toml` is gitignored. The checkpoint loads on the first forecast and is cached under `.cache/huggingface` by default. After a successful online load, offline mode can reuse the exact pinned revision. Kaggle and public URL acquisition still require a network.
+
+## Guided workflow
+
+Use the stage selector from left to right:
+
+1. **Load & configure** — upload or resolve one or more datasets. Clearing this stage removes
+   loaded session data and generated outputs without deleting the local content-addressed cache.
+2. **Analyze** — choose the active dataset, columns, and seasonal period, then inspect the full EDA.
+3. **Forecast** — run standard TimesFM in batch or select XReg for an extended covariate table.
+4. **Evaluate & anomalies** — run 1–10 rolling-origin windows and inspect accuracy, calibration,
+   throughput, and actuals outside the q10–q90 interval.
+5. **Export** — download forecast CSV, interactive HTML, PDF, or a ZIP containing all tables and
+   the model/data provenance manifest.
+
+The **Manual simulator** toggle in the sidebar remains available for quick numeric sequences.
+
+### XReg input contract
+
+For covariate forecasting, the target must contain a finite historical context followed by exactly
+the future blank rows that define the horizon. Dynamic numerical and categorical covariates must be
+complete across both context and future rows. TimesFM uses the selected Torch device; the linear
+XReg component runs on CPU for Windows compatibility.
 
 ## Forecast workflows
 
@@ -155,7 +180,8 @@ The public URL resolver allows only HTTP/S, revalidates redirects, blocks privat
 | One model per process | Model resource is cached and compile/inference is lock-serialized |
 | Compile-key changes | New rounded context/horizon or positivity may trigger recompilation |
 | Univariate input | Extra columns are not model covariates |
-| No built-in backtesting | Accuracy and interval calibration must be evaluated separately |
+| Rolling backtesting | Uses non-overlapping windows and performs one model call per window |
+| XReg dependency cost | CPU JAX/JAXLIB, scikit-learn, and their numerical dependencies increase install size |
 | Local parsing | XLSX/Parquet expansion consumes process memory |
 
 ## Contributing and support
