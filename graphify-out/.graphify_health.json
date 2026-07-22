@@ -1,0 +1,183 @@
+{
+  "node_count": 335,
+  "raw_edge_count": 1067,
+  "non_object_edges": 0,
+  "missing_endpoint_edges": 0,
+  "dangling_endpoint_edges": 210,
+  "self_loop_edges": 0,
+  "valid_candidate_edges": 857,
+  "exact_duplicate_edges": 5,
+  "directed_unique_endpoint_pairs": 824,
+  "directed_same_endpoint_collapsed_edges": 33,
+  "undirected_unique_endpoint_pairs": 820,
+  "undirected_same_endpoint_collapsed_edges": 37,
+  "same_endpoint_group_count": 32,
+  "relation_variant_groups": 27,
+  "source_file_variant_groups": 0,
+  "source_location_variant_groups": 0,
+  "context_variant_groups": 1,
+  "post_build_graph_type": "Graph",
+  "post_build_node_count": 335,
+  "post_build_edge_count": 861,
+  "post_build_error": "",
+  "producer_suppression": {
+    "path": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\site-packages\\graphify\\extract.py",
+    "total_sites": 10,
+    "sites": [
+      {
+        "line": 958,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 1108,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 1110,
+        "name": "seen_doc_refs",
+        "tuple_arity": 0,
+        "sample": "seen_doc_refs: set[str] = set()"
+      },
+      {
+        "line": 1533,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 2002,
+        "name": "seen_keys",
+        "tuple_arity": 0,
+        "sample": "seen_keys: set[tuple] = set()"
+      },
+      {
+        "line": 2925,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3033,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3112,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3607,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 3608,
+        "name": "seen_edges",
+        "tuple_arity": 4,
+        "sample": "seen_edges: set[tuple[str, str, str, str | None]] = set()"
+      }
+    ],
+    "error": ""
+  },
+  "examples": [
+    {
+      "source": "tests_unit_test_forecasting_fakemodel_forecast",
+      "target": "tests_unit_test_forecasting_py_ndarray",
+      "edge_count": 3,
+      "relations": [
+        "references"
+      ],
+      "source_files": [
+        "tests/unit/test_forecasting.py"
+      ],
+      "source_locations": [
+        "L38"
+      ],
+      "contexts": [
+        "generic_arg"
+      ]
+    },
+    {
+      "source": "generate_slides_create_architecture_slide",
+      "target": "generate_slides_markdowndocument",
+      "edge_count": 2,
+      "relations": [
+        "references"
+      ],
+      "source_files": [
+        "generate_slides.py"
+      ],
+      "source_locations": [
+        "L689"
+      ],
+      "contexts": [
+        "parameter_type"
+      ]
+    },
+    {
+      "source": "generate_slides_create_pitfalls_slide",
+      "target": "generate_slides_markdowndocument",
+      "edge_count": 2,
+      "relations": [
+        "references"
+      ],
+      "source_files": [
+        "generate_slides.py"
+      ],
+      "source_locations": [
+        "L1077"
+      ],
+      "contexts": [
+        "parameter_type"
+      ]
+    },
+    {
+      "source": "generate_slides_build_presentation",
+      "target": "presentation",
+      "edge_count": 2,
+      "relations": [
+        "calls",
+        "references"
+      ],
+      "source_files": [
+        "generate_slides.py"
+      ],
+      "source_locations": [
+        "L1379",
+        "L1385"
+      ],
+      "contexts": [
+        "call",
+        "return_type"
+      ]
+    },
+    {
+      "source": "generate_slides_save_atomically",
+      "target": "presentation",
+      "edge_count": 2,
+      "relations": [
+        "calls",
+        "references"
+      ],
+      "source_files": [
+        "generate_slides.py"
+      ],
+      "source_locations": [
+        "L1405",
+        "L1417"
+      ],
+      "contexts": [
+        "call",
+        "parameter_type"
+      ]
+    }
+  ]
+}
