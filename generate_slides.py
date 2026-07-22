@@ -1431,13 +1431,13 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--github-url",
-        required=True,
+        default="https://github.com/pypi-ahmad/timesfm-forecasting-studio",
         type=lambda value: validate_http_url(value, "--github-url"),
         help="Published project GitHub URL used on the setup and CTA slides.",
     )
     parser.add_argument(
         "--docs-url",
-        required=True,
+        default="https://github.com/pypi-ahmad/timesfm-forecasting-studio/tree/main/docs/tutorial",
         type=lambda value: validate_http_url(value, "--docs-url"),
         help="Published course documentation URL used on the CTA slide.",
     )
