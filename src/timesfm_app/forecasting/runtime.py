@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from timesfm_app.config import AppSettings
-from timesfm_app.contracts import ForecastRequest, ForecastResult
+from timesfm_app.contracts import CovariateForecastRequest, ForecastRequest, ForecastResult
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +117,60 @@ class TimesFMRuntime:
             )
         return results
 
+    def forecast_with_covariates(self, request: CovariateForecastRequest) -> ForecastResult:
+        started = time.perf_counter()
+        with self._lock:
+            model = self._get_model()
+            # XReg needs backcasts, so it recompiles after a standard forecast.
+            config = self._make_xreg_config(request)
+            model.compile(config)
+            self._compile_key = None
+            point, distribution = model.forecast_with_covariates(
+                inputs=[request.values],
+                dynamic_numerical_covariates={
+                    name: [np.asarray(values, dtype=float)]
+                    for name, values in request.dynamic_numerical.items()
+                }
+                or None,
+                dynamic_categorical_covariates={
+                    name: [_encode_categories(values)]
+                    for name, values in request.dynamic_categorical.items()
+                }
+                or None,
+                static_numerical_covariates={
+                    name: [value] for name, value in request.static_numerical.items()
+                }
+                or None,
+                static_categorical_covariates={
+                    name: [_encode_categories([value])[0]]
+                    for name, value in request.static_categorical.items()
+                }
+                or None,
+                xreg_mode=request.mode,
+                force_on_cpu=True,
+            )
+        point_array = np.asarray(point[0], dtype=np.float32)
+        distribution_array = np.asarray(distribution[0], dtype=np.float32)
+        if point_array.shape != (request.horizon,) or distribution_array.shape != (
+            request.horizon,
+            10,
+        ):
+            raise ForecastRuntimeError("TimesFM XReg returned an invalid forecast shape.")
+        future = None
+        if request.timestamps is not None and request.frequency:
+            future = build_future_index(request.timestamps[-1], request.frequency, request.horizon)
+        device = str(getattr(getattr(model, "model", None), "device", "unknown"))
+        return ForecastResult(
+            future_timestamps=future,
+            point=point_array,
+            distribution=distribution_array,
+            model_id=self.settings.model_id,
+            model_revision=self.settings.model_revision,
+            device=device,
+            latency_ms=(time.perf_counter() - started) * 1_000,
+            warnings=(f"XReg mode: {request.mode}; linear regression forced to CPU.",),
+        )
+
     def _get_model(self) -> Any:
         if self._model is not None:
             return self._model
@@ -180,6 +234,30 @@ class TimesFMRuntime:
             infer_is_positive=request.non_negative,
             fix_quantile_crossing=True,
         )
+
+    def _make_xreg_config(self, request: CovariateForecastRequest) -> Any:
+        factory = self._config_factory
+        if factory is None:
+            import timesfm
+
+            factory = timesfm.ForecastConfig
+        return factory(
+            max_context=request.compile_context,
+            max_horizon=request.compile_horizon,
+            normalize_inputs=True,
+            per_core_batch_size=1,
+            use_continuous_quantile_head=True,
+            force_flip_invariance=True,
+            infer_is_positive=request.non_negative,
+            fix_quantile_crossing=True,
+            return_backcast=True,
+        )
+
+
+def _encode_categories(values: list[object]) -> list[int]:
+    labels = sorted({str(value) for value in values})
+    encoding = {label: index for index, label in enumerate(labels)}
+    return [encoding[str(value)] for value in values]
 
 
 def build_future_index(

@@ -8,6 +8,7 @@ from loader import UploadPayload, cache_uploads
 from timesfm_app.config import AppSettings
 from timesfm_app.contracts import ResolvedAsset
 from timesfm_app.ingestion.resolvers import download_public_url
+from timesfm_app.ui.state import clear_dataset_state
 
 
 def loaded_assets() -> dict[str, ResolvedAsset]:
@@ -42,10 +43,12 @@ def _add_assets(assets: list[ResolvedAsset]) -> None:
 
 
 def _render_upload(settings: AppSettings) -> None:
+    generation = st.session_state.setdefault("upload_generation", 0)
     uploads = st.file_uploader(
         "Upload datasets",
         type=["csv", "parquet", "xlsx"],
         accept_multiple_files=True,
+        key=f"dataset_uploads_{generation}",
     )
     if uploads:
         payloads = [UploadPayload(item.name, item.getvalue()) for item in uploads]
@@ -114,7 +117,9 @@ def _render_inventory() -> None:
         for asset in inventory.values()
     ]
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
-    if st.button("Clear loaded datasets"):
-        inventory.clear()
-        st.session_state.pop("forecast_outputs", None)
-        st.rerun()
+    st.button(
+        "Clear loaded datasets",
+        icon=":material/delete_sweep:",
+        on_click=clear_dataset_state,
+        args=(st.session_state,),
+    )

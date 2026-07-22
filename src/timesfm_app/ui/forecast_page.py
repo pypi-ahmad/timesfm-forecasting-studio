@@ -2,16 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 from loader import LoadedDataset, load_dataset, workbook_sheets
 from predictor import PredictionOutput
-from timesfm_app.contracts import ForecastRequest, PreparedSeries, ResolvedAsset, SeriesSpec
+from timesfm_app.contracts import (
+    CovariateForecastRequest,
+    DataQualityReport,
+    ForecastRequest,
+    PreparedSeries,
+    ResolvedAsset,
+    SeriesSpec,
+)
 from timesfm_app.forecasting.preprocessing import prepare_series
 from timesfm_app.ui.charts import build_forecast_chart
 from timesfm_app.ui.controls import ForecastControls
 from timesfm_app.ui.loading_page import loaded_assets
+from timesfm_app.ui.results import forecast_frame
 from timesfm_app.ui.runtime import get_predictor
 
 
@@ -21,6 +30,10 @@ class DatasetMapping:
     date_column: str
     target_column: str
     non_negative: bool
+    forecast_kind: str = "Standard TimesFM"
+    numerical_covariates: tuple[str, ...] = ()
+    categorical_covariates: tuple[str, ...] = ()
+    xreg_mode: str = "xreg + timesfm"
 
 
 @st.cache_data(show_spinner=False)
@@ -54,6 +67,72 @@ def build_forecast_request(
         non_negative=non_negative,
     )
     return request, prepared
+
+
+def build_covariate_request(
+    dataset: LoadedDataset,
+    *,
+    date_column: str,
+    target_column: str,
+    numerical_covariates: list[str],
+    categorical_covariates: list[str],
+    mode: str,
+    frequency: str | None,
+    context_length: int | None = None,
+    non_negative: bool = False,
+) -> CovariateForecastRequest:
+    frame = dataset.frame.copy()
+    frame[date_column] = pd.to_datetime(frame[date_column], errors="coerce")
+    if frame[date_column].isna().any():
+        raise ValueError("XReg date/time values must all be valid.")
+    frame = frame.sort_values(date_column)
+    if frame[date_column].duplicated().any():
+        raise ValueError("XReg timestamps must be unique.")
+    timestamps = pd.DatetimeIndex(frame[date_column])
+    resolved_frequency = frequency or pd.infer_freq(timestamps)
+    if resolved_frequency is None:
+        raise ValueError("XReg timestamps must form a regular grid or use an explicit frequency.")
+    expected_timestamps = pd.date_range(
+        timestamps[0], periods=len(timestamps), freq=resolved_frequency
+    )
+    if not timestamps.equals(expected_timestamps):
+        raise ValueError("XReg timestamps do not match the selected regular frequency.")
+    target = pd.to_numeric(frame[target_column], errors="coerce")
+    missing = target.isna().to_numpy()
+    if not missing.any():
+        raise ValueError("XReg input needs missing future target rows to define the horizon.")
+    first_missing = int(missing.argmax())
+    if first_missing < 2 or not missing[first_missing:].all():
+        raise ValueError("XReg target must be finite context followed by one missing future tail.")
+    horizon = len(frame) - first_missing
+    start = max(0, first_missing - context_length) if context_length else 0
+    extended = frame.iloc[start:]
+    context = target.iloc[start:first_missing].to_numpy(dtype=np.float32)
+    numerical: dict[str, object] = {}
+    for column in numerical_covariates:
+        values = pd.to_numeric(extended[column], errors="coerce")
+        if values.isna().any():
+            raise ValueError(
+                f"Numerical covariate {column!r} must be complete through the horizon."
+            )
+        numerical[column] = values.to_numpy(dtype=float)
+    categorical: dict[str, list[object]] = {}
+    for column in categorical_covariates:
+        if extended[column].isna().any():
+            raise ValueError(
+                f"Categorical covariate {column!r} must be complete through the horizon."
+            )
+        categorical[column] = extended[column].astype(str).tolist()
+    return CovariateForecastRequest(
+        values=context,
+        horizon=horizon,
+        dynamic_numerical=numerical,
+        dynamic_categorical=categorical,
+        timestamps=pd.DatetimeIndex(extended[date_column].iloc[: len(context)]),
+        frequency=resolved_frequency,
+        mode=mode,
+        non_negative=non_negative,
+    )
 
 
 def render_forecast_page(controls: ForecastControls) -> None:
@@ -114,11 +193,57 @@ def _render_mapping(dataset_id: str, asset: ResolvedAsset) -> DatasetMapping | N
         non_negative = st.checkbox(
             "Target cannot be negative", key=f"positive_{dataset_id}_{sheet}"
         )
+        forecast_kind = st.segmented_control(
+            "Forecast approach",
+            ["Standard TimesFM", "TimesFM + XReg covariates"],
+            default="Standard TimesFM",
+            key=f"approach_{dataset_id}_{sheet}",
+        )
+        numerical_covariates: list[str] = []
+        categorical_covariates: list[str] = []
+        xreg_mode = "xreg + timesfm"
+        if forecast_kind == "TimesFM + XReg covariates":
+            covariate_options = [
+                column for column in columns if column not in {date_column, target_column}
+            ]
+            numerical_options = [
+                column
+                for column in covariate_options
+                if pd.api.types.is_numeric_dtype(dataset.frame[column])
+            ]
+            numerical_covariates = st.multiselect(
+                "Dynamic numerical covariates",
+                numerical_options,
+                key=f"xreg_num_{dataset_id}_{sheet}",
+            )
+            categorical_covariates = st.multiselect(
+                "Dynamic categorical covariates",
+                [column for column in covariate_options if column not in numerical_options],
+                key=f"xreg_cat_{dataset_id}_{sheet}",
+            )
+            xreg_mode = st.segmented_control(
+                "XReg mode",
+                ["xreg + timesfm", "timesfm + xreg"],
+                default="xreg + timesfm",
+                key=f"xreg_mode_{dataset_id}_{sheet}",
+            )
+            st.caption(
+                "Leave the future target blank and provide covariates through the forecast horizon."
+            )
         if dataset.datetime_columns:
             st.caption(f"Detected datetime candidates: {', '.join(dataset.datetime_columns)}")
         else:
             st.warning("No datetime column was confidently detected; verify the selection.")
-        return DatasetMapping(dataset, date_column, target_column, non_negative)
+        return DatasetMapping(
+            dataset,
+            date_column,
+            target_column,
+            non_negative,
+            forecast_kind or "Standard TimesFM",
+            tuple(numerical_covariates),
+            tuple(categorical_covariates),
+            xreg_mode or "xreg + timesfm",
+        )
 
 
 def _run_all(
@@ -128,10 +253,31 @@ def _run_all(
 ) -> None:
     progress = st.progress(0, text="Validating datasets…")
     requests: dict[str, ForecastRequest] = {}
+    covariate_requests: dict[str, CovariateForecastRequest] = {}
     histories: dict[str, PreparedSeries] = {}
     errors = dict(setup_errors)
     for index, (dataset_id, mapping) in enumerate(mappings.items(), start=1):
         try:
+            if mapping.forecast_kind == "TimesFM + XReg covariates":
+                request = build_covariate_request(
+                    mapping.dataset,
+                    date_column=mapping.date_column,
+                    target_column=mapping.target_column,
+                    numerical_covariates=list(mapping.numerical_covariates),
+                    categorical_covariates=list(mapping.categorical_covariates),
+                    mode=mapping.xreg_mode,
+                    frequency=controls.frequency,
+                    context_length=controls.context_length,
+                    non_negative=mapping.non_negative,
+                )
+                covariate_requests[dataset_id] = request
+                histories[dataset_id] = PreparedSeries(
+                    timestamps=request.timestamps,
+                    values=request.values,
+                    frequency=request.frequency or controls.frequency,
+                    report=DataQualityReport(len(mapping.dataset.frame), len(request.values)),
+                )
+                continue
             request, prepared = build_forecast_request(
                 mapping.dataset,
                 date_column=mapping.date_column,
@@ -150,6 +296,12 @@ def _run_all(
         batch = get_predictor(controls.device).predict_many(requests)
         outputs.update(batch.forecasts)
         errors.update(batch.errors)
+    for dataset_id, request in covariate_requests.items():
+        try:
+            result = get_predictor(controls.device).runtime.forecast_with_covariates(request)
+            outputs[dataset_id] = PredictionOutput(dataset_id, result, forecast_frame(result))
+        except Exception as error:
+            errors[dataset_id] = f"{type(error).__name__}: {error}"
     progress.progress(1.0, text="Forecasting complete")
     st.session_state.forecast_outputs = outputs
     st.session_state.forecast_errors = errors
@@ -183,6 +335,14 @@ def _render_selected_result(inventory: dict[str, ResolvedAsset]) -> None:
     except Exception as error:
         st.error(f"Forecast chart rendering failed ({type(error).__name__}): {error}")
     st.dataframe(output.frame, width="stretch", hide_index=True)
+    st.download_button(
+        "Download forecast CSV",
+        output.frame.to_csv(index=False).encode("utf-8"),
+        file_name=f"{inventory[selected_id].path.stem}-forecast.csv",
+        mime="text/csv",
+        icon=":material/download:",
+        on_click="ignore",
+    )
     st.caption(
         f"{output.result.model_id} · {output.result.device} · "
         f"{output.result.latency_ms:,.0f} ms · revision {output.result.model_revision[:8]}"

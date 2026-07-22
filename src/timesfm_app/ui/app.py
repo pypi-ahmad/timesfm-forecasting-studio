@@ -3,10 +3,9 @@ from __future__ import annotations
 import streamlit as st
 
 from timesfm_app.ui.controls import render_sidebar
-from timesfm_app.ui.forecast_page import render_forecast_page
-from timesfm_app.ui.loading_page import render_loading_page
 from timesfm_app.ui.manual_page import render_manual_page
 from timesfm_app.ui.runtime import load_settings
+from timesfm_app.ui.workbench_page import render_workbench_stage
 
 
 def render_app() -> None:
@@ -15,16 +14,17 @@ def render_app() -> None:
     st.title("TimesFM Forecast Studio")
     st.caption("Local-first, zero-shot univariate forecasting with Google TimesFM 2.5")
     controls = render_sidebar(load_settings())
-
-    loading_tab, forecast_tab, manual_tab = st.tabs(
-        ["Data Loading", "Interactive Forecasting Charts", "Manual Simulator"]
+    stage = st.segmented_control(
+        "Workflow stage",
+        ["Load & configure", "Analyze", "Forecast", "Evaluate & anomalies", "Export"],
+        default="Load & configure",
+        key="workflow_stage",
     )
-    with loading_tab:
-        render_loading_page(load_settings())
-    with forecast_tab:
-        render_forecast_page(controls)
-    with manual_tab:
+    manual = st.sidebar.toggle("Manual simulator", value=False)
+    if manual:
         render_manual_page(controls)
+        return
+    render_workbench_stage(stage or "Load & configure", controls, load_settings())
 
 
 def _apply_theme() -> None:
