@@ -4,6 +4,8 @@ A local-first Streamlit application for **zero-shot, univariate forecasting** wi
 
 > ⚠️ Forecasts are analytical estimates, not guarantees. Evaluate TimesFM against held-out data and domain baselines before using outputs for operational, financial, safety, or policy decisions.
 
+> **New here?** Read the [complete user guide](docs/user-guide.md) — clone/setup/run instructions, why and how to use every feature, and the core theory in plain language, all in one document.
+
 ## Features
 
 | Area | Capability |
