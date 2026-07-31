@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html" class="active">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="timesfm-forecast-studio">TimesFM Forecast Studio</h1>
+<p>A local-first Streamlit application for <strong>zero-shot, univariate forecasting</strong> with Google TimesFM 2.5 (200M, PyTorch). Load CSV, Parquet, or XLSX data from your computer, public URLs, Kaggle, or Hugging Face; then generate point and quantile forecasts without training a model.</p>
+<blockquote>
+<p>⚠️ Forecasts are analytical estimates, not guarantees. Evaluate TimesFM against held-out data and domain baselines before using outputs for operational, financial, safety, or policy decisions.</p>
+<p><strong>New here?</strong> Read the <a href="docs/user-guide.md">complete user guide</a> — clone/setup/run instructions, why and how to use every feature, and the core theory in plain language, all in one document.</p>
+</blockquote>
+<h2 id="features">Features</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Capability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data sources</td>
+<td>Multi-file upload, HTTP/S URL, Kaggle, Hugging Face Hub</td>
+</tr>
+<tr>
+<td>Formats</td>
+<td>CSV, Parquet, XLSX with worksheet selection</td>
+</tr>
+<tr>
+<td>Preparation</td>
+<td>Datetime detection, numeric coercion, regular-grid validation, context slicing</td>
+</tr>
+<tr>
+<td>Forecasting</td>
+<td>TimesFM 2.5 standard and XReg covariate forecasts with point, mean, and q10–q90 outputs</td>
+</tr>
+<tr>
+<td>Hardware</td>
+<td>Auto, CPU, or NVIDIA CUDA selection</td>
+</tr>
+<tr>
+<td>EDA</td>
+<td>Quality, distribution, trend, seasonality, ACF, STL, ADF, and robust outlier diagnostics</td>
+</tr>
+<tr>
+<td>Evaluation</td>
+<td>1–10 rolling-origin windows, point/probabilistic metrics, latency, and interval anomalies</td>
+</tr>
+<tr>
+<td>Export</td>
+<td>Direct CSV plus self-contained HTML, vector PDF, and complete ZIP report bundles</td>
+</tr>
+<tr>
+<td>Visualization</td>
+<td>Interactive Plotly forecast, EDA, backtest, and anomaly charts</td>
+</tr>
+<tr>
+<td>Playground</td>
+<td>Comma/newline-separated numeric sequence forecasting</td>
+</tr>
+<tr>
+<td>Local operation</td>
+<td>Content-addressed data cache and offline model reuse</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quick-start">Quick start</h2>
+<p>Prerequisites are Git, <a href="https://docs.astral.sh/uv/"><code>uv</code></a>, and enough local disk/memory for PyTorch and the checkpoint. The project targets Python 3.14.</p>
+<pre><code class="language-powershell">git clone https://github.com/pypi-ahmad/timesfm-forecasting-studio.git
+Set-Location timesfm-forecasting-studio
+uv python install 3.14
+uv sync --locked --group dev
+uv run streamlit run app.py
+</code></pre>
+<p><code>uv</code> and <code>uv.lock</code> are canonical. A pip-compatible dependency list is also available:</p>
+<pre><code class="language-powershell">py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+streamlit run app.py
+</code></pre>
+<p>The lockfile selects the PyTorch CUDA 13.0 index. CPU remains selectable in the UI; consult the <a href="docs/tutorial/02_local_installation.md">installation tutorial</a> before changing the locked PyTorch source.</p>
+<h2 id="runtime-contract">Runtime contract</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Choice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model</td>
+<td><code>google/timesfm-2.5-200m-pytorch</code></td>
+</tr>
+<tr>
+<td>Revision</td>
+<td><code>1d952420fba87f3c6dee4f240de0f1a0fbc790e3</code></td>
+</tr>
+<tr>
+<td>Context</td>
+<td>2–16,256 observations, compiled in 32-point buckets</td>
+</tr>
+<tr>
+<td>Horizon</td>
+<td>1–1,024, compiled in 128-point buckets</td>
+</tr>
+<tr>
+<td>Combined limit</td>
+<td>Rounded context + horizon ≤ 16,384</td>
+</tr>
+<tr>
+<td>Input</td>
+<td>One one-dimensional <code>float32</code> array per series</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>q50 point forecast plus mean and q10–q90 distribution</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td>Timestamp validation and future-index generation only</td>
+</tr>
+</tbody>
+</table>
+<p>TimesFM 2.5 does not receive a frequency indicator. The selected hourly/daily/weekly/monthly frequency validates the historical grid and labels future points; seasonal behavior must be present in the numeric context. See the <a href="https://github.com/google-research/timesfm">official TimesFM repository</a>.</p>
+<h2 id="credentials-and-cache">Credentials and cache</h2>
+<p>Prefer environment variables or local Streamlit secrets. Values are never intentionally displayed or logged.</p>
+<table>
+<thead>
+<tr>
+<th>Provider/behavior</th>
+<th>Variables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hugging Face</td>
+<td><code>HF_TOKEN</code></td>
+</tr>
+<tr>
+<td>Kaggle current auth</td>
+<td><code>KAGGLE_API_TOKEN</code></td>
+</tr>
+<tr>
+<td>Kaggle legacy auth</td>
+<td><code>KAGGLE_USERNAME</code>, <code>KAGGLE_KEY</code></td>
+</tr>
+<tr>
+<td>Cache location</td>
+<td><code>TIMESFM_APP_CACHE</code></td>
+</tr>
+<tr>
+<td>Cached-only model/HF access</td>
+<td><code>TIMESFM_OFFLINE=true</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-powershell">Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
+</code></pre>
+<p><code>.streamlit/secrets.toml</code> is gitignored. The checkpoint loads on the first forecast and is cached under <code>.cache/huggingface</code> by default. After a successful online load, offline mode can reuse the exact pinned revision. Kaggle and public URL acquisition still require a network.</p>
+<h2 id="guided-workflow">Guided workflow</h2>
+<p>Use the stage selector from left to right:</p>
+<ol>
+<li><strong>Load &amp; configure</strong> — upload or resolve one or more datasets. Clearing this stage removes
+   loaded session data and generated outputs without deleting the local content-addressed cache.</li>
+<li><strong>Analyze</strong> — choose the active dataset, columns, and seasonal period, then inspect the full EDA.</li>
+<li><strong>Forecast</strong> — run standard TimesFM in batch or select XReg for an extended covariate table.</li>
+<li><strong>Evaluate &amp; anomalies</strong> — run 1–10 rolling-origin windows and inspect accuracy, calibration,
+   throughput, and actuals outside the q10–q90 interval.</li>
+<li><strong>Export</strong> — download forecast CSV, interactive HTML, PDF, or a ZIP containing all tables and
+   the model/data provenance manifest.</li>
+</ol>
+<p>The <strong>Manual simulator</strong> toggle in the sidebar remains available for quick numeric sequences.</p>
+<h3 id="xreg-input-contract">XReg input contract</h3>
+<p>For covariate forecasting, the target must contain a finite historical context followed by exactly
+the future blank rows that define the horizon. Dynamic numerical and categorical covariates must be
+complete across both context and future rows. TimesFM uses the selected Torch device; the linear
+XReg component runs on CPU for Windows compatibility.</p>
+<h2 id="forecast-workflows">Forecast workflows</h2>
+<pre class="mermaid">flowchart LR
+    A[Upload / URL / Kaggle / HF] --> B[Read tabular data]
+    B --> C[Select date and target]
+    C --> D[Validate regular series]
+    D --> E[TimesFM 2.5 inference]
+    E --> F[Plotly chart and forecast table]
+    G[Manual numeric sequence] --> E
+</pre>
+<h3 id="dataset-forecast">Dataset forecast</h3>
+<ol>
+<li>Load one or more supported files in <strong>Data Loading</strong>.</li>
+<li>Choose the worksheet, detected date column, numeric target, and positivity for each file.</li>
+<li>Set context, horizon, frequency, and Auto/CPU/CUDA in the sidebar.</li>
+<li>Run forecasting and inspect each dataset's chart, metadata, and quantile table.</li>
+</ol>
+<p>Duplicate or irregular timestamps and trailing target gaps are rejected. Leading target gaps are trimmed; internal gaps are reported and linearly interpolated by TimesFM before inference.</p>
+<h3 id="manual-forecast">Manual forecast</h3>
+<p>Open <strong>Manual Simulator</strong> and enter at least two finite values:</p>
+<pre><code class="language-text">10, 12, 15, 14, 18, 21
+</code></pre>
+<p>The manual workflow does not invent a datetime index; future positions are plotted as integers.</p>
+<h2 id="zero-to-master-tutorial">Zero-to-Master tutorial</h2>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="docs/tutorial/01_timesfm_intro.md">1. TimesFM foundations</a></td>
+<td>Understand TSFMs, zero-shot mathematics, patching, quantiles, and model comparisons</td>
+</tr>
+<tr>
+<td><a href="docs/tutorial/02_local_installation.md">2. Local installation</a></td>
+<td>Install with uv/venv/Conda, verify CUDA/CPU, authenticate, and manage cache</td>
+</tr>
+<tr>
+<td><a href="docs/tutorial/03_data_engineering.md">3. Data engineering</a></td>
+<td>Build regular series from local, URL, Kaggle, and Hugging Face data</td>
+</tr>
+<tr>
+<td><a href="docs/tutorial/04_forecasting_mastery.md">4. Forecasting mastery</a></td>
+<td>Choose context/horizon, interpret charts, manage OOM, and design evaluation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="architecture">Architecture</h2>
+<pre><code class="language-text">app.py
+src/loader.py                   stable multi-file loading facade
+src/integrations.py             Kaggle and Hugging Face search clients
+src/predictor.py                device-aware Pandas predictor facade
+src/timesfm_app/
+  config.py                     environment and secret configuration
+  contracts.py                  boundary dataclasses and model limits
+  ingestion/
+    readers.py                  CSV / Parquet / XLSX
+    resolvers.py                upload and SSRF-hardened URL caching
+    providers.py                Kaggle and Hugging Face resolution
+  forecasting/
+    preprocessing.py            time-series validation and slicing
+    runtime.py                  checkpoint load, compile, inference
+  ui/                           Streamlit pages, controls, charts, tables
+tests/
+  unit/                         contracts, ingestion, providers, runtime
+  integration/                  model-free Streamlit smoke tests
+</code></pre>
+<p>The public URL resolver allows only HTTP/S, revalidates redirects, blocks private and special-purpose IP ranges, limits downloads to 200 MiB, checks supported extensions and binary signatures, and strips queries from retained metadata. Remote files remain untrusted: compressed formats can expand significantly in local memory.</p>
+<p>For a full repo-grounded attacker-model writeup (trust boundaries, abuse paths, threat table), see <a href="timesfm-forecasting-studio-threat-model.md"><code>timesfm-forecasting-studio-threat-model.md</code></a>.</p>
+<h2 id="commands">Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv sync --locked --group dev</code></td>
+<td>Reproduce runtime and development dependencies</td>
+</tr>
+<tr>
+<td><code>uv run streamlit run app.py</code></td>
+<td>Start the application</td>
+</tr>
+<tr>
+<td><code>uv run pytest</code></td>
+<td>Run unit and integration tests</td>
+</tr>
+<tr>
+<td><code>uv run ruff check src tests app.py</code></td>
+<td>Run lint checks</td>
+</tr>
+<tr>
+<td><code>uv run ruff format --check src tests app.py</code></td>
+<td>Verify formatting</td>
+</tr>
+</tbody>
+</table>
+<h2 id="operational-limits">Operational limits</h2>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One model per process</td>
+<td>Model resource is cached and compile/inference is lock-serialized</td>
+</tr>
+<tr>
+<td>Compile-key changes</td>
+<td>New rounded context/horizon or positivity may trigger recompilation</td>
+</tr>
+<tr>
+<td>Univariate input</td>
+<td>Extra columns are not model covariates</td>
+</tr>
+<tr>
+<td>Rolling backtesting</td>
+<td>Uses non-overlapping windows and performs one model call per window</td>
+</tr>
+<tr>
+<td>XReg dependency cost</td>
+<td>CPU JAX/JAXLIB, scikit-learn, and their numerical dependencies increase install size</td>
+</tr>
+<tr>
+<td>Local parsing</td>
+<td>XLSX/Parquet expansion consumes process memory</td>
+</tr>
+</tbody>
+</table>
+<h2 id="contributing-and-support">Contributing and support</h2>
+<p>Read <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> before proposing changes. Use the structured GitHub issue forms for reproducible bugs, focused features, and documentation problems. General usage guidance is in <a href="SUPPORT.md">SUPPORT.md</a>. Report vulnerabilities privately according to <a href="SECURITY.md">SECURITY.md</a>, never through a public issue.</p>
+<p>All contributors must follow the <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>.</p>
+<h2 id="citation-and-upstream-work">Citation and upstream work</h2>
+<p>TimesFM is developed by Google Research. This repository is an independent Streamlit application and is not an official Google product.</p>
+<ul>
+<li>Google Research, <a href="https://github.com/google-research/timesfm">TimesFM repository</a>.</li>
+<li>Das et al., <a href="https://arxiv.org/abs/2310.10688"><em>A Decoder-only Foundation Model for Time-series Forecasting</em></a>.</li>
+<li>Google Research, <a href="https://research.google/blog/a-decoder-only-foundation-model-for-time-series-forecasting/">TimesFM research overview</a>.</li>
+</ul>
+<h2 id="license">License</h2>
+<p>This application is released under the <a href="LICENSE">MIT License</a>. TimesFM model weights, upstream code, datasets, and third-party dependencies remain subject to their respective licenses and terms.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

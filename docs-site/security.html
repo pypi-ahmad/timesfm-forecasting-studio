@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security policy · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html" class="active">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="security-policy">Security Policy</h1>
+<h2 id="supported-versions">Supported versions</h2>
+<p>Security fixes are applied to the latest code on the default branch. The project is currently pre-1.0 and does not promise fixes for older snapshots.</p>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th style="text-align: right;">Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest default branch</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr>
+<td>Older commits or forks</td>
+<td style="text-align: right;">No</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reporting-a-vulnerability">Reporting a vulnerability</h2>
+<p>Do not disclose suspected vulnerabilities in public issues, discussions, pull requests, screenshots, logs, or example datasets.</p>
+<p>Use GitHub's <strong>Report a vulnerability</strong> control on the repository Security page. If private vulnerability reporting is not enabled, contact the maintainer through the private method published on the <a href="https://github.com/pypi-ahmad">maintainer's GitHub profile</a> and request a secure reporting channel without including exploit details in the initial public message.</p>
+<p>Include only what is necessary for reproduction:</p>
+<table>
+<thead>
+<tr>
+<th>Information</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Affected component/version</td>
+<td>URL resolver on current default branch</td>
+</tr>
+<tr>
+<td>Impact</td>
+<td>Local network access, credential exposure, arbitrary file write</td>
+</tr>
+<tr>
+<td>Preconditions</td>
+<td>Attacker controls a dataset URL</td>
+</tr>
+<tr>
+<td>Reproduction</td>
+<td>Minimal safe request and observed result</td>
+</tr>
+<tr>
+<td>Suggested mitigation</td>
+<td>Optional and clearly separated from evidence</td>
+</tr>
+</tbody>
+</table>
+<p>Never include real credentials, personal data, proprietary datasets, or destructive payloads. Use synthetic values and redact tokens from logs.</p>
+<h2 id="response-expectations">Response expectations</h2>
+<p>The maintainer will acknowledge a complete report when practical, validate severity and affected versions, coordinate a fix, and credit the reporter if requested and safe. Timelines depend on impact and maintainer availability; no service-level agreement is promised.</p>
+<p>Please allow a reasonable remediation window before public disclosure. If a report is not a security issue, it may be redirected to the normal issue tracker after sensitive details are removed.</p>
+<h2 id="security-boundaries">Security boundaries</h2>
+<p>The application processes untrusted local and remote tabular files in the local Python process. It applies URL scheme, DNS/IP, redirect, size, extension, and signature checks, but compressed XLSX/Parquet content can still consume substantial memory. Provider tokens and model/data caches remain the operator's responsibility.</p>
+<p>TimesFM weights, Kaggle, Hugging Face, PyTorch, Streamlit, and other dependencies have separate security and disclosure processes. Report upstream vulnerabilities to the affected upstream project as well as this project when the integration creates project-specific impact.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

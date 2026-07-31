@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial 2 · Local installation · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html" class="active">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="timesfm-zero-to-master-2-local-installation">TimesFM Zero to Master — 2. Local Installation</h1>
+<p><a href="01_timesfm_intro.md">← Previous: Foundations</a> · <a href="../../README.md#zero-to-master-tutorial">Tutorial home</a> · <strong>Part 2 of 4</strong> · <a href="03_data_engineering.md">Next: Data engineering →</a></p>
+<p>This chapter installs the repository locally, verifies CPU or NVIDIA CUDA execution, authenticates Hugging Face, and prepares the model cache. Commands are Windows-first because that is the repository's locked development target; Bash equivalents are included where they differ.</p>
+<h2 id="1-runtime-contract">1. Runtime contract</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Repository value</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python</td>
+<td><code>&gt;=3.14,&lt;3.15</code></td>
+<td>The lockfile resolves for Python 3.14</td>
+</tr>
+<tr>
+<td>Package manager</td>
+<td><code>uv</code> with <code>uv.lock</code></td>
+<td>Reproducible canonical environment</td>
+</tr>
+<tr>
+<td>PyTorch</td>
+<td>2.13.0</td>
+<td>TimesFM PyTorch backend</td>
+</tr>
+<tr>
+<td>PyTorch index</td>
+<td>CUDA 13.0</td>
+<td>Selected by <code>pyproject.toml</code> and <code>uv.lock</code></td>
+</tr>
+<tr>
+<td>TimesFM</td>
+<td>2.0.2 package</td>
+<td>Provides the TimesFM 2.5 model class</td>
+</tr>
+<tr>
+<td>Model</td>
+<td><code>google/timesfm-2.5-200m-pytorch</code></td>
+<td>Downloaded lazily on first forecast</td>
+</tr>
+<tr>
+<td>Model revision</td>
+<td><code>1d952420fba87f3c6dee4f240de0f1a0fbc790e3</code></td>
+<td>Reproducible checkpoint</td>
+</tr>
+</tbody>
+</table>
+<p>The authoritative dependency declarations are <code>pyproject.toml</code> and <code>uv.lock</code>. <code>requirements.txt</code> is retained for pip-compatible environments.</p>
+<pre class="mermaid">flowchart TD
+    A[Clone repository] --> B{Environment method}
+    B -->|Recommended| C[uv sync --locked]
+    B -->|Standard library| D[venv + requirements.txt]
+    B -->|Conda-managed Python| E[conda env + requirements.txt]
+    C --> F[Verify imports and Torch device]
+    D --> F
+    E --> F
+    F --> G[Configure HF/Kaggle credentials]
+    G --> H[Start Streamlit]
+    H --> I[First forecast downloads checkpoint]
+</pre>
+<h2 id="2-prerequisites">2. Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Check</th>
+<th>Installation source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Git</td>
+<td><code>git --version</code></td>
+<td><a href="https://git-scm.com/downloads">Git downloads</a></td>
+</tr>
+<tr>
+<td>uv</td>
+<td><code>uv --version</code></td>
+<td><a href="https://docs.astral.sh/uv/getting-started/installation/">Official uv installation</a></td>
+</tr>
+<tr>
+<td>NVIDIA driver, optional</td>
+<td><code>nvidia-smi</code></td>
+<td><a href="https://www.nvidia.com/download/index.aspx">NVIDIA driver downloads</a></td>
+</tr>
+<tr>
+<td>Conda, optional</td>
+<td><code>conda --version</code></td>
+<td><a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">Conda environment guide</a></td>
+</tr>
+</tbody>
+</table>
+<p>Install uv on Windows if needed:</p>
+<pre><code class="language-powershell">powershell -ExecutionPolicy ByPass -c &quot;irm https://astral.sh/uv/install.ps1 | iex&quot;
+uv --version
+</code></pre>
+<p>On macOS/Linux:</p>
+<pre><code class="language-bash">curl -LsSf https://astral.sh/uv/install.sh | sh
+uv --version
+</code></pre>
+<blockquote>
+<p>⚠️ Review organization policy before executing any downloaded installer. The commands above are the methods published in the <a href="https://docs.astral.sh/uv/getting-started/installation/">official uv documentation</a>.</p>
+</blockquote>
+<h2 id="3-clone-the-repository">3. Clone the repository</h2>
+<p>Clone the published project repository:</p>
+<pre><code class="language-powershell">git clone https://github.com/pypi-ahmad/timesfm-forecasting-studio.git
+Set-Location timesfm-forecasting-studio
+</code></pre>
+<p>Bash:</p>
+<pre><code class="language-bash">git clone https://github.com/pypi-ahmad/timesfm-forecasting-studio.git
+cd timesfm-forecasting-studio
+</code></pre>
+<p>Confirm that <code>app.py</code>, <code>pyproject.toml</code>, <code>uv.lock</code>, <code>src/</code>, and <code>tests/</code> are present before installing anything.</p>
+<h2 id="4-recommended-setup-with-uv">4. Recommended setup with uv</h2>
+<p><code>uv</code> reads the project metadata, installs a compatible Python when necessary, creates <code>.venv</code>, and synchronizes exact locked dependencies.</p>
+<pre><code class="language-powershell">uv python install 3.14
+uv sync --locked --group dev
+uv run python -c &quot;import streamlit, timesfm, torch; print(torch.__version__)&quot;
+</code></pre>
+<p>Start the app:</p>
+<pre><code class="language-powershell">uv run streamlit run app.py
+</code></pre>
+<p>Streamlit prints a local URL, normally <code>http://localhost:8501</code>. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>.</p>
+<blockquote>
+<p>✅ Use <code>uv run ...</code> instead of manually activating <code>.venv</code>; uv guarantees the command runs inside the project environment.</p>
+</blockquote>
+<h2 id="5-alternative-python-venv-and-pip">5. Alternative: Python venv and pip</h2>
+<p>The standard-library <a href="https://docs.python.org/3/library/venv.html"><code>venv</code></a> path is useful when uv is unavailable. It follows <code>requirements.txt</code>, not the canonical lockfile.</p>
+<h3 id="windows-powershell">Windows PowerShell</h3>
+<pre><code class="language-powershell">py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+streamlit run app.py
+</code></pre>
+<p>If script execution is restricted, use the environment's interpreter directly:</p>
+<pre><code class="language-powershell">.\.venv\Scripts\python.exe -m streamlit run app.py
+</code></pre>
+<h3 id="macoslinux">macOS/Linux</h3>
+<pre><code class="language-bash">python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+streamlit run app.py
+</code></pre>
+<blockquote>
+<p>⚠️ <code>requirements.txt</code> pins direct dependencies but does not encode the CUDA 13.0 package source from <code>uv.lock</code>. Verify the installed PyTorch build before assuming GPU support.</p>
+</blockquote>
+<h2 id="6-alternative-conda-environment">6. Alternative: Conda environment</h2>
+<p>Use Conda to manage Python and isolation, then install the repository's declared Python packages with pip:</p>
+<pre><code class="language-powershell">conda create --name timesfm-studio python=3.14 -y
+conda activate timesfm-studio
+python -m pip install -r requirements.txt
+streamlit run app.py
+</code></pre>
+<p>Remove this environment later with <code>conda env remove --name timesfm-studio</code>; do not delete unrelated Conda environments.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">Reproducibility here</th>
+<th style="text-align: right;">GPU source encoded?</th>
+<th>Recommended use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>uv + lockfile</td>
+<td style="text-align: right;">Highest</td>
+<td style="text-align: right;">Yes, CUDA 13.0</td>
+<td>Development and verification</td>
+</tr>
+<tr>
+<td>venv + pip</td>
+<td style="text-align: right;">Direct pins only</td>
+<td style="text-align: right;">No</td>
+<td>Simple compatibility setup</td>
+</tr>
+<tr>
+<td>Conda + pip</td>
+<td style="text-align: right;">Direct pins only</td>
+<td style="text-align: right;">No</td>
+<td>Existing Conda workflows</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-cpu-versus-cuda">7. CPU versus CUDA</h2>
+<p>The app exposes <strong>Auto</strong>, <strong>CPU</strong>, and <strong>CUDA</strong> device preferences. Auto chooses CUDA when <code>torch.cuda.is_available()</code> is true; otherwise it uses CPU. An explicit CUDA request fails clearly if CUDA is unavailable.</p>
+<h3 id="71-verify-pytorch">7.1 Verify PyTorch</h3>
+<p>With uv:</p>
+<pre><code class="language-powershell">uv run python -c &quot;import torch; print({'torch': torch.__version__, 'cuda_build': torch.version.cuda, 'cuda_available': torch.cuda.is_available(), 'devices': torch.cuda.device_count()})&quot;
+</code></pre>
+<p>With an activated venv/Conda environment, omit <code>uv run</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Result</th>
+<th>Meaning</th>
+<th>App selection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cuda_available: True</code></td>
+<td>Driver and wheel can expose an NVIDIA GPU</td>
+<td>Auto or CUDA</td>
+</tr>
+<tr>
+<td><code>cuda_available: False</code> and <code>cuda_build</code> has a value</td>
+<td>CUDA wheel exists but runtime cannot use a GPU</td>
+<td>CPU; inspect driver/device</td>
+</tr>
+<tr>
+<td><code>cuda_build: None</code></td>
+<td>CPU-only PyTorch build</td>
+<td>CPU</td>
+</tr>
+</tbody>
+</table>
+<p>PyTorch's supported wheel combinations change over time; consult the <a href="https://pytorch.org/get-started/locally/">official PyTorch installation selector</a> before replacing the locked source.</p>
+<h3 id="72-resource-tradeoffs">7.2 Resource tradeoffs</h3>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Benefit</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CUDA</td>
+<td>Faster model inference</td>
+<td>GPU memory and compatible NVIDIA stack required</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>Works without NVIDIA hardware</td>
+<td>Higher latency and host-memory use</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Out of memory:</strong> reduce context, horizon, or the number of simultaneously forecast datasets. Close other GPU-heavy programs. Switching to CPU avoids GPU-memory pressure but may require substantial RAM and more time.</p>
+</blockquote>
+<h2 id="8-hugging-face-authentication-and-caching">8. Hugging Face authentication and caching</h2>
+<p>Public model files often work without a token, but authentication raises reliability and is required for gated/private assets. Create a <strong>read-only</strong> token in <a href="https://huggingface.co/settings/tokens">Hugging Face settings</a>.</p>
+<h3 id="81-cli-login">8.1 CLI login</h3>
+<p>The installed <code>huggingface_hub</code> package provides the <code>hf</code> command:</p>
+<pre><code class="language-powershell">uv run hf auth login
+uv run hf auth whoami
+</code></pre>
+<p>Paste the token only into the secure prompt. The <a href="https://huggingface.co/docs/huggingface_hub/quick-start#authentication">Hugging Face authentication guide</a> explains token storage and environment-variable precedence.</p>
+<h3 id="82-environment-variables">8.2 Environment variables</h3>
+<p>For the current PowerShell process:</p>
+<pre><code class="language-powershell">$env:HF_TOKEN = &quot;paste-token-in-your-terminal&quot;
+$env:TIMESFM_APP_CACHE = &quot;.cache&quot;
+uv run streamlit run app.py
+</code></pre>
+<p>Bash:</p>
+<pre><code class="language-bash">export HF_TOKEN=&quot;paste-token-in-your-terminal&quot;
+export TIMESFM_APP_CACHE=&quot;.cache&quot;
+uv run streamlit run app.py
+</code></pre>
+<p>Do not save those literal examples with a real token. Environment variables disappear when the shell closes unless deliberately persisted.</p>
+<h3 id="83-streamlit-secrets">8.3 Streamlit secrets</h3>
+<pre><code class="language-powershell">Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
+</code></pre>
+<p>Edit <code>.streamlit/secrets.toml</code> locally. It is gitignored. The app accepts these names:</p>
+<pre><code class="language-toml">HF_TOKEN = &quot;hf_read_only_token&quot;
+KAGGLE_API_TOKEN = &quot;kaggle_token&quot;
+TIMESFM_APP_CACHE = &quot;.cache&quot;
+TIMESFM_OFFLINE = &quot;false&quot;
+</code></pre>
+<blockquote>
+<p>⚠️ Never commit <code>.streamlit/secrets.toml</code>, <code>kaggle.json</code>, tokens, or terminal output containing credentials.</p>
+</blockquote>
+<h3 id="84-first-download-and-offline-mode">8.4 First download and offline mode</h3>
+<p>The model is lazy-loaded. Opening the UI does not download weights; the first forecast does. Files are cached under <code>.cache/huggingface</code> unless <code>TIMESFM_APP_CACHE</code> changes the root.</p>
+<p>After one successful online forecast, restart in offline mode:</p>
+<pre><code class="language-powershell">$env:TIMESFM_OFFLINE = &quot;true&quot;
+uv run streamlit run app.py
+</code></pre>
+<p>Offline mode sets Hugging Face downloads to local-only. URL and Kaggle retrieval still require a network, and an uncached model/dataset fails rather than silently fetching it.</p>
+<h2 id="9-kaggle-credentials">9. Kaggle credentials</h2>
+<p>The app accepts either the current token or legacy username/key pair:</p>
+<table>
+<thead>
+<tr>
+<th>Preferred</th>
+<th>Legacy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KAGGLE_API_TOKEN</code></td>
+<td><code>KAGGLE_USERNAME</code> and <code>KAGGLE_KEY</code></td>
+</tr>
+</tbody>
+</table>
+<p>Set only one mechanism. Use the token created from your Kaggle account settings and keep it outside the repository. The official <a href="https://github.com/Kaggle/kaggle-api">Kaggle API repository</a> documents authentication options.</p>
+<h2 id="10-installation-verification">10. Installation verification</h2>
+<p>Run model-free checks before downloading weights:</p>
+<pre><code class="language-powershell">uv run pytest
+uv run ruff check src tests app.py
+uv run ruff format --check src tests app.py
+</code></pre>
+<p>Then start Streamlit and perform a manual forecast using a short sequence. The first model load may take materially longer than later forecasts because the checkpoint must be downloaded and initialized.</p>
+<h2 id="11-troubleshooting-matrix">11. Troubleshooting matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Corrective action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>No solution found</code> during <code>uv sync</code></td>
+<td>Wrong Python or incompatible platform</td>
+<td>Run <code>uv python install 3.14</code>, then retry locked sync</td>
+</tr>
+<tr>
+<td><code>CUDA was requested but is unavailable</code></td>
+<td>CUDA selected without a usable device</td>
+<td>Choose Auto/CPU; inspect <code>nvidia-smi</code> and Torch check</td>
+</tr>
+<tr>
+<td>Checkpoint loading failed</td>
+<td>Network, token, cache, or device issue</td>
+<td>Disable offline mode, verify <code>HF_TOKEN</code>, cache permissions, and device</td>
+</tr>
+<tr>
+<td>Offline file not found</td>
+<td>Checkpoint revision was never cached</td>
+<td>Run one online forecast first</td>
+</tr>
+<tr>
+<td>PowerShell blocks activation</td>
+<td>Execution policy restricts scripts</td>
+<td>Use <code>uv run</code> or the venv Python executable directly</td>
+</tr>
+<tr>
+<td>Very slow first forecast</td>
+<td>Download and model initialization</td>
+<td>Wait for first completion; subsequent loads use cache</td>
+</tr>
+<tr>
+<td>Disk usage is unexpectedly high</td>
+<td>PyTorch, checkpoint, and Windows no-symlink cache</td>
+<td>Move <code>TIMESFM_APP_CACHE</code> to a larger local volume</td>
+</tr>
+</tbody>
+</table>
+<h2 id="references">References</h2>
+<ul>
+<li>Astral, <a href="https://docs.astral.sh/uv/getting-started/installation/">uv installation</a> and <a href="https://docs.astral.sh/uv/concepts/projects/sync/">project synchronization</a>.</li>
+<li>Python, <a href="https://docs.python.org/3/library/venv.html"><code>venv</code> documentation</a>.</li>
+<li>Conda, <a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">managing environments</a>.</li>
+<li>PyTorch, <a href="https://pytorch.org/get-started/locally/">local installation selector</a>.</li>
+<li>Hugging Face, <a href="https://huggingface.co/docs/huggingface_hub/quick-start#authentication">authentication</a> and <a href="https://huggingface.co/docs/huggingface_hub/guides/manage-cache">cache management</a>.</li>
+<li>Kaggle, <a href="https://github.com/Kaggle/kaggle-api">official API client</a>.</li>
+<li>Google Research, <a href="https://github.com/google-research/timesfm">TimesFM repository</a>.</li>
+</ul>
+<p><a href="01_timesfm_intro.md">← Previous: Foundations</a> · <a href="03_data_engineering.md">Next: Data engineering →</a></p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

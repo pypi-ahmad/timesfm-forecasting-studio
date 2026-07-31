@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code of conduct · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html" class="active">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="contributor-covenant-code-of-conduct">Contributor Covenant Code of Conduct</h1>
+<h2 id="our-pledge">Our Pledge</h2>
+<p>We as members, contributors, and leaders pledge to make participation in our community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socioeconomic status, nationality, personal appearance, race, caste, color, religion, or sexual identity and orientation.</p>
+<p>We pledge to act and interact in ways that contribute to an open, welcoming, diverse, inclusive, and healthy community.</p>
+<h2 id="our-standards">Our Standards</h2>
+<p>Examples of behavior that contributes to a positive environment include:</p>
+<ul>
+<li>Demonstrating empathy and kindness toward other people.</li>
+<li>Respecting differing opinions, viewpoints, and experiences.</li>
+<li>Giving and gracefully accepting constructive feedback.</li>
+<li>Accepting responsibility and apologizing to those affected by our mistakes.</li>
+<li>Focusing on what is best for the overall community.</li>
+</ul>
+<p>Examples of unacceptable behavior include:</p>
+<ul>
+<li>Sexualized language or imagery, and sexual attention or advances of any kind.</li>
+<li>Trolling, insulting or derogatory comments, and personal or political attacks.</li>
+<li>Public or private harassment.</li>
+<li>Publishing others' private information without explicit permission.</li>
+<li>Other conduct which could reasonably be considered inappropriate in a professional setting.</li>
+</ul>
+<h2 id="enforcement-responsibilities">Enforcement Responsibilities</h2>
+<p>Community leaders are responsible for clarifying and enforcing standards of acceptable behavior and will take appropriate and fair corrective action in response to behavior they deem inappropriate, threatening, offensive, or harmful.</p>
+<p>Community leaders have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that do not align with this Code of Conduct, and will communicate reasons for moderation decisions when appropriate.</p>
+<h2 id="scope">Scope</h2>
+<p>This Code of Conduct applies within all community spaces and when an individual officially represents the community in public spaces. Examples include using an official email address, posting via an official social media account, or acting as an appointed representative at an event.</p>
+<h2 id="enforcement">Enforcement</h2>
+<p>Instances of abusive, harassing, or otherwise unacceptable behavior may be reported privately to the project maintainer through the contact method published on the <a href="https://github.com/pypi-ahmad">maintainer's GitHub profile</a>. Reports will be reviewed promptly and fairly.</p>
+<p>All community leaders must respect the privacy and security of the reporter of any incident.</p>
+<h2 id="enforcement-guidelines">Enforcement Guidelines</h2>
+<p>Community leaders will follow these Community Impact Guidelines in determining consequences for actions that violate this Code of Conduct:</p>
+<h3 id="1-correction">1. Correction</h3>
+<p><strong>Community Impact:</strong> Use of inappropriate language or other behavior deemed unprofessional or unwelcome.</p>
+<p><strong>Consequence:</strong> A private, written warning providing clarity around the violation and an explanation of why the behavior was inappropriate. A public apology may be requested.</p>
+<h3 id="2-warning">2. Warning</h3>
+<p><strong>Community Impact:</strong> A violation through a single incident or series of actions.</p>
+<p><strong>Consequence:</strong> A warning with consequences for continued behavior. No interaction with the people involved, including unsolicited interaction with those enforcing the Code of Conduct, for a specified period. This includes avoiding interactions in community spaces and external channels. Violating these terms may lead to a temporary or permanent ban.</p>
+<h3 id="3-temporary-ban">3. Temporary Ban</h3>
+<p><strong>Community Impact:</strong> A serious violation of community standards, including sustained inappropriate behavior.</p>
+<p><strong>Consequence:</strong> A temporary ban from interaction or public communication with the community for a specified period. No public or private interaction with the people involved, including unsolicited interaction with those enforcing the Code of Conduct, is allowed during this period. Violating these terms may lead to a permanent ban.</p>
+<h3 id="4-permanent-ban">4. Permanent Ban</h3>
+<p><strong>Community Impact:</strong> A pattern of violation of community standards, including sustained inappropriate behavior, harassment of an individual, or aggression toward or disparagement of classes of individuals.</p>
+<p><strong>Consequence:</strong> A permanent ban from public interaction within the community.</p>
+<h2 id="attribution">Attribution</h2>
+<p>This Code of Conduct is adapted from the <a href="https://www.contributor-covenant.org/version/2/1/code_of_conduct.html">Contributor Covenant, version 2.1</a>. Community Impact Guidelines were inspired by <a href="https://github.com/mozilla/diversity">Mozilla's code of conduct enforcement ladder</a>.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

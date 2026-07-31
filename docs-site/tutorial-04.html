@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial 4 · Forecasting mastery · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html" class="active">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="timesfm-zero-to-master-4-forecasting-mastery">TimesFM Zero to Master — 4. Forecasting Mastery</h1>
+<p><a href="03_data_engineering.md">← Previous: Data engineering</a> · <a href="../../README.md#zero-to-master-tutorial">Tutorial home</a> · <strong>Part 4 of 4</strong></p>
+<p>This chapter connects model mechanics to every forecasting control in the Streamlit application. You will choose defensible context and horizon values, interpret quantiles, use the interactive chart, and diagnose resource or data failures.</p>
+<h2 id="1-end-to-end-prediction-path">1. End-to-end prediction path</h2>
+<pre class="mermaid">flowchart TD
+    A[Prepared numeric series] --> B[Keep latest C observations]
+    B --> C[Build 1-D float32 array]
+    C --> D[Round compile context to 32]
+    E[Requested horizon H] --> F[Round compile horizon to 128]
+    D --> G[Compile/load TimesFM configuration]
+    F --> G
+    G --> H[TimesFM forecast batch]
+    H --> I[Point matrix: batch × H]
+    H --> J[Distribution: batch × H × 10]
+    I --> K[q50 chart and table]
+    J --> L[Mean and q10–q90]
+    M[Last timestamp + frequency] --> N[Future DatetimeIndex]
+    N --> K
+    N --> L
+</pre>
+<p>The checkpoint is loaded lazily and cached as a Streamlit resource. A process holds one model instance and serializes compilation/inference through a lock.</p>
+<h2 id="2-context-length">2. Context length</h2>
+<p><strong>Context length</strong> (C) is the maximum number of recent observations retained. If a file has more than (C) rows, older values are excluded. If it has fewer, all usable observations are sent, but at least two are required.</p>
+<h3 id="21-choosing-context-by-cycles">2.1 Choosing context by cycles</h3>
+<table>
+<thead>
+<tr>
+<th>Data frequency</th>
+<th style="text-align: right;">Candidate context</th>
+<th>Patterns represented</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hourly</td>
+<td style="text-align: right;">168</td>
+<td>One weekly cycle</td>
+</tr>
+<tr>
+<td>Hourly</td>
+<td style="text-align: right;">720</td>
+<td>Roughly one month plus several weekly cycles</td>
+</tr>
+<tr>
+<td>Daily</td>
+<td style="text-align: right;">365</td>
+<td>One annual cycle</td>
+</tr>
+<tr>
+<td>Weekly</td>
+<td style="text-align: right;">104</td>
+<td>Two annual cycles</td>
+</tr>
+<tr>
+<td>Monthly</td>
+<td style="text-align: right;">60</td>
+<td>Five annual cycles</td>
+</tr>
+</tbody>
+</table>
+<p>These are starting points, not model requirements. Choose enough context to expose relevant cycles and regimes without drowning recent behavior in stale history.</p>
+<table>
+<thead>
+<tr>
+<th>Context too short</th>
+<th>Context too long</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Seasonal pattern may be absent</td>
+<td>Old regimes may dilute current dynamics</td>
+</tr>
+<tr>
+<td>Recent anomalies dominate</td>
+<td>More compile time and memory</td>
+</tr>
+<tr>
+<td>Fewer examples of peaks/troughs</td>
+<td>Higher OOM risk</td>
+</tr>
+</tbody>
+</table>
+<p>The app warns when context contains fewer than 32 observations because that is less than one full input patch.</p>
+<h2 id="3-forecast-horizon">3. Forecast horizon</h2>
+<p><strong>Forecast horizon</strong> (H) is the number of future periods requested, from 1 to 1,024. Its calendar meaning depends on the timestamp frequency.</p>
+<table>
+<thead>
+<tr>
+<th>Frequency</th>
+<th style="text-align: right;">Horizon</th>
+<th>Calendar interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hourly</td>
+<td style="text-align: right;">24</td>
+<td>One day</td>
+</tr>
+<tr>
+<td>Hourly</td>
+<td style="text-align: right;">168</td>
+<td>One week</td>
+</tr>
+<tr>
+<td>Daily</td>
+<td style="text-align: right;">30</td>
+<td>Approximately one month</td>
+</tr>
+<tr>
+<td>Weekly</td>
+<td style="text-align: right;">13</td>
+<td>Approximately one quarter</td>
+</tr>
+<tr>
+<td>Month-end</td>
+<td style="text-align: right;">12</td>
+<td>One year</td>
+</tr>
+</tbody>
+</table>
+<p>Longer horizons compound uncertainty. Even when the model returns a narrow interval, do not assume calibration without historical coverage testing.</p>
+<h2 id="4-dimension-matching-and-compilation-buckets">4. Dimension matching and compilation buckets</h2>
+<p>TimesFM accepts a Python list containing one 1-D numeric array per series:</p>
+<pre><code class="language-python">inputs = [series_a.astype(numpy.float32), series_b.astype(numpy.float32)]
+point, distribution = model.forecast(inputs=inputs, horizon=horizon)
+</code></pre>
+<p>Arrays may have different context lengths, but every request in an app batch must share the same horizon and non-negative setting. The runtime compiles using the maximum context in that batch.</p>
+<p>The application rounds requested dimensions to TimesFM patch boundaries:</p>
+<p>[
+C_{\text{compile}}=32\left\lceil\frac{C}{32}\right\rceil,
+\qquad
+H_{\text{compile}}=128\left\lceil\frac{H}{128}\right\rceil.
+]</p>
+<p>It enforces</p>
+<p>[
+C_{\text{compile}}+H_{\text{compile}}\le 16{,}384.
+]</p>
+<p>Because even horizon 1 compiles to 128, the UI caps selected context at 16,256.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Requested</th>
+<th style="text-align: right;">Compiled</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">Context 365</td>
+<td style="text-align: right;">384</td>
+<td>Rounded to 12 input patches</td>
+</tr>
+<tr>
+<td style="text-align: right;">Horizon 24</td>
+<td style="text-align: right;">128</td>
+<td>One output patch compiled; 24 returned</td>
+</tr>
+<tr>
+<td style="text-align: right;">Horizon 129</td>
+<td style="text-align: right;">256</td>
+<td>Crosses an output-patch boundary</td>
+</tr>
+<tr>
+<td style="text-align: right;">Context 16,256 + horizon 1</td>
+<td style="text-align: right;">16,256 + 128</td>
+<td>Exactly reaches the limit</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ A one-step increase can cross a patch boundary and trigger recompilation with higher memory use. Prefer stable parameter presets during repeated experimentation.</p>
+</blockquote>
+<h2 id="5-frequency-and-seasonality">5. Frequency and seasonality</h2>
+<p>In this app frequency controls the <strong>datetime contract</strong>, not a model feature:</p>
+<pre class="mermaid">flowchart LR
+    A[Selected/inferred frequency] --> B[Validate historical grid]
+    A --> C[Generate future timestamps]
+    D[Historical target values] --> E[TimesFM]
+    B --> F[Structured forecast]
+    C --> F
+    E --> F
+</pre>
+<p>TimesFM 2.5 removed the earlier frequency indicator. Selecting hourly, daily, weekly, or monthly does not tell the checkpoint which seasonalities to use. The numeric context must contain sufficient repeated behavior for the model to recognize it. This change is documented in the <a href="https://github.com/google-research/timesfm#timesfm-25">official TimesFM repository</a>.</p>
+<p>Calendar-aware pandas aliases preserve semantics. For example, month-end dates remain month-end when the future index is generated.</p>
+<blockquote>
+<p>⚠️ Never label weekly observations as daily to obtain daily-looking output. That changes timestamp labels without creating valid daily information.</p>
+</blockquote>
+<h2 id="6-runtime-configuration">6. Runtime configuration</h2>
+<p>The runtime constructs a <code>ForecastConfig</code> with the rounded dimensions and these production choices:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th style="text-align: right;">Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>normalize_inputs</code></td>
+<td style="text-align: right;"><code>True</code></td>
+<td>Normalize scale before model inference</td>
+</tr>
+<tr>
+<td><code>per_core_batch_size</code></td>
+<td style="text-align: right;"><code>1</code></td>
+<td>Conservative memory use</td>
+</tr>
+<tr>
+<td><code>use_continuous_quantile_head</code></td>
+<td style="text-align: right;"><code>True</code></td>
+<td>Produce quantile distribution</td>
+</tr>
+<tr>
+<td><code>force_flip_invariance</code></td>
+<td style="text-align: right;"><code>True</code></td>
+<td>Stabilize behavior under sign flipping</td>
+</tr>
+<tr>
+<td><code>infer_is_positive</code></td>
+<td style="text-align: right;">Per-series UI setting</td>
+<td>Constrain series expected to be non-negative</td>
+</tr>
+<tr>
+<td><code>fix_quantile_crossing</code></td>
+<td style="text-align: right;"><code>True</code></td>
+<td>Preserve ordered quantiles</td>
+</tr>
+</tbody>
+</table>
+<p>The model loads from <code>google/timesfm-2.5-200m-pytorch</code> at the revision pinned in <code>src/timesfm_app/config.py</code>. <code>torch_compile</code> is disabled during checkpoint load for predictable local startup.</p>
+<h2 id="7-understanding-outputs">7. Understanding outputs</h2>
+<p>For batch size (B), TimesFM returns:</p>
+<table>
+<thead>
+<tr>
+<th>Output</th>
+<th>Shape</th>
+<th>App use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Point</td>
+<td>((B,H))</td>
+<td>q50 forecast path</td>
+</tr>
+<tr>
+<td>Distribution</td>
+<td>((B,H,10))</td>
+<td>Mean, q10, q20, …, q90</td>
+</tr>
+</tbody>
+</table>
+<p>Channel mapping is exact:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Channel</th>
+<th>Column</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0</td>
+<td>Mean</td>
+</tr>
+<tr>
+<td style="text-align: right;">1</td>
+<td>q10</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>q20</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>q30</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>q40</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>q50</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>q60</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>q70</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>q80</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>q90</td>
+</tr>
+</tbody>
+</table>
+<p>The runtime rejects unexpected shapes or non-finite outputs rather than displaying misaligned data.</p>
+<h3 id="71-quantile-interpretation">7.1 Quantile interpretation</h3>
+<p>At a future timestamp, q10 is the model's estimate of the 10th predictive percentile and q90 the 90th. The interval width</p>
+<p>[
+w_t=\hat y_{0.9,t}-\hat y_{0.1,t}
+]</p>
+<p>is a useful uncertainty signal, but empirical calibration must be measured. For a nominal 80% interval, evaluate</p>
+<p>[
+\widehat{\operatorname{coverage}}
+=\frac{1}{N}\sum_{i=1}^N
+\mathbb{1}[y_i\in[\hat y_{0.1,i},\hat y_{0.9,i}]].
+]</p>
+<p>Coverage near 0.8 across representative holdouts is evidence of calibration; a single forecast chart is not.</p>
+<h2 id="8-interactive-forecasting-workflow">8. Interactive forecasting workflow</h2>
+<ol>
+<li>Load and map one or more datasets in <strong>Data Loading</strong>.</li>
+<li>Set context, horizon, frequency, and device in the sidebar.</li>
+<li>Mark non-negative series only when negative values are physically or logically impossible.</li>
+<li>Run forecasting from <strong>Interactive Forecasting Charts</strong>.</li>
+<li>Select a dataset result and inspect its chart, quality messages, device, latency, and output table.</li>
+</ol>
+<p>The Plotly chart contains:</p>
+<table>
+<thead>
+<tr>
+<th>Visual element</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gray line</td>
+<td>Historical context</td>
+</tr>
+<tr>
+<td>Blue line and markers</td>
+<td>Future q50 forecast</td>
+</tr>
+<tr>
+<td>Light blue band</td>
+<td>q10–q90 interval</td>
+</tr>
+<tr>
+<td>Shaded future region</td>
+<td>Forecast period</td>
+</tr>
+<tr>
+<td>Unified hover</td>
+<td>Values aligned at each timestamp</td>
+</tr>
+</tbody>
+</table>
+<p>Plotly renders interactively through Streamlit, allowing zoom, pan, hover, and image export. See the official <a href="https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart"><code>st.plotly_chart</code></a> and <a href="https://plotly.com/python/time-series/">Plotly time-series guide</a>.</p>
+<blockquote>
+<p>⚠️ The blue q50 line is not the distribution mean. Skewed predictive distributions can have different mean and median values; both are retained in the result table.</p>
+</blockquote>
+<h2 id="9-manual-simulator">9. Manual simulator</h2>
+<p>The <strong>Manual Simulator</strong> is the shortest path from numbers to a zero-shot forecast. Enter comma- or newline-separated values:</p>
+<pre><code class="language-text">10, 12, 15, 14, 18, 21, 19, 24
+</code></pre>
+<p>The parser:</p>
+<ol>
+<li>Splits on commas and line breaks.</li>
+<li>Ignores surrounding whitespace and empty tokens.</li>
+<li>Requires at least two finite numeric values.</li>
+<li>Reports the position of an invalid token.</li>
+<li>Converts values to a one-dimensional <code>float32</code> array.</li>
+</ol>
+<p>The simulator does not invent timestamps. Its chart uses integer positions and the requested horizon. Context is limited to the latest sidebar-selected number of values.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>10, 12, 15</code></td>
+<td>Valid</td>
+</tr>
+<tr>
+<td><code>10\n12\n15</code></td>
+<td>Valid</td>
+</tr>
+<tr>
+<td><code>10, missing, 15</code></td>
+<td>Error at position 2</td>
+</tr>
+<tr>
+<td><code>10, NaN, 15</code></td>
+<td>Non-finite value error</td>
+</tr>
+<tr>
+<td><code>10</code></td>
+<td>Requires at least two values</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-practical-parameter-recipes">10. Practical parameter recipes</h2>
+<h3 id="hourly-traffic">Hourly traffic</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th style="text-align: right;">Starting value</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context</td>
+<td style="text-align: right;">672</td>
+<td>Four weekly cycles</td>
+</tr>
+<tr>
+<td>Horizon</td>
+<td style="text-align: right;">24 or 168</td>
+<td>One day or one week</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td style="text-align: right;">Hourly</td>
+<td>Preserves hourly future grid</td>
+</tr>
+<tr>
+<td>Non-negative</td>
+<td style="text-align: right;">Yes</td>
+<td>Traffic counts cannot be negative</td>
+</tr>
+</tbody>
+</table>
+<h3 id="daily-demand">Daily demand</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th style="text-align: right;">Starting value</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context</td>
+<td style="text-align: right;">730</td>
+<td>Two annual cycles if available</td>
+</tr>
+<tr>
+<td>Horizon</td>
+<td style="text-align: right;">30 or 90</td>
+<td>Monthly/quarterly planning</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td style="text-align: right;">Daily</td>
+<td>Daily future index</td>
+</tr>
+<tr>
+<td>Non-negative</td>
+<td style="text-align: right;">Usually yes</td>
+<td>Confirm target semantics first</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monthly-revenue">Monthly revenue</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th style="text-align: right;">Starting value</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context</td>
+<td style="text-align: right;">60–120</td>
+<td>Five to ten annual cycles</td>
+</tr>
+<tr>
+<td>Horizon</td>
+<td style="text-align: right;">12</td>
+<td>One year</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td style="text-align: right;">Month-end/month-start matching source</td>
+<td>Preserves calendar convention</td>
+</tr>
+<tr>
+<td>Non-negative</td>
+<td style="text-align: right;">Domain-dependent</td>
+<td>Returns/refunds may permit negatives</td>
+</tr>
+</tbody>
+</table>
+<p>These recipes expose cycles but do not replace backtesting. Compare nearby context values and evaluate stability.</p>
+<h2 id="11-performance-and-oom-control">11. Performance and OOM control</h2>
+<pre class="mermaid">flowchart TD
+    A[OOM or excessive latency] --> B[Reduce context to fewer cycles]
+    B --> C[Reduce horizon below patch boundary]
+    C --> D[Forecast fewer files together]
+    D --> E{CUDA still fails?}
+    E -- Yes --> F[Close GPU workloads / choose CPU]
+    E -- No --> G[Retest and record latency]
+    F --> G
+</pre>
+<table>
+<thead>
+<tr>
+<th>Lever</th>
+<th>Memory effect</th>
+<th>Forecast tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shorter context</td>
+<td>Lower</td>
+<td>May remove useful cycles</td>
+</tr>
+<tr>
+<td>Shorter horizon</td>
+<td>Lower, especially across 128-step boundary</td>
+<td>Less future coverage</td>
+</tr>
+<tr>
+<td>Smaller batch</td>
+<td>Lower</td>
+<td>More sequential runs</td>
+</tr>
+<tr>
+<td>CPU device</td>
+<td>Removes GPU-memory constraint</td>
+<td>Slower, consumes host RAM</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ Do not respond to OOM by silently truncating source data outside the selected context. Make parameter changes explicit so forecasts remain reproducible.</p>
+</blockquote>
+<h2 id="12-evaluation-before-production">12. Evaluation before production</h2>
+<p>The app is a forecasting simulator, not a backtesting system. A defensible evaluation uses historical cutoffs:</p>
+<pre class="mermaid">flowchart LR
+    A[Full historical series] --> B[Choose cutoff T]
+    B --> C[Context through T]
+    B --> D[Actual next H values]
+    C --> E[TimesFM forecast]
+    E --> F[MAE / RMSE / coverage]
+    D --> F
+    F --> G[Repeat across cutoffs]
+</pre>
+<p>Useful metrics include</p>
+<p>[
+\operatorname{MAE}=\frac{1}{N}\sum_i|y_i-\hat y_i|,
+\qquad
+\operatorname{RMSE}=\sqrt{\frac{1}{N}\sum_i(y_i-\hat y_i)^2}.
+]</p>
+<p>Compare against at least a last-value baseline and, for seasonal data, a seasonal-naive baseline (\hat y_t=y_{t-s}). Evaluate interval coverage separately from point accuracy.</p>
+<h2 id="13-failure-matrix">13. Failure matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Why it happens</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rounded context plus horizon exceeds 16,384</td>
+<td>Compile buckets violate model limit</td>
+<td>Reduce context or horizon</td>
+</tr>
+<tr>
+<td>CUDA requested but unavailable</td>
+<td>No compatible runtime device</td>
+<td>Select Auto/CPU or repair CUDA stack</td>
+</tr>
+<tr>
+<td>Batch must share horizon/non-negative setting</td>
+<td>Requests are incompatible</td>
+<td>Run as separate groups</td>
+</tr>
+<tr>
+<td>Invalid point/distribution shape</td>
+<td>Model/API contract mismatch</td>
+<td>Confirm pinned model/package and clear incompatible cache</td>
+</tr>
+<tr>
+<td>Non-finite forecast</td>
+<td>Runtime output validation failed</td>
+<td>Inspect input scale/missingness; retain error details</td>
+</tr>
+<tr>
+<td>Forecast recompiles repeatedly</td>
+<td>Parameters cross compile buckets or positivity changes</td>
+<td>Reuse stable presets</td>
+</tr>
+<tr>
+<td>Wide or implausible interval</td>
+<td>Uncertain/out-of-domain context</td>
+<td>Validate data and compare baselines; do not suppress band</td>
+</tr>
+</tbody>
+</table>
+<h2 id="14-mastery-checklist">14. Mastery checklist</h2>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>You can now…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context design</td>
+<td>Relate observations to repeated cycles and regime relevance</td>
+</tr>
+<tr>
+<td>Horizon design</td>
+<td>Translate future steps into calendar/business meaning</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td>Explain validation/indexing versus model seasonality</td>
+</tr>
+<tr>
+<td>Tensor contract</td>
+<td>State the 1-D inputs and <code>(batch, horizon, 10)</code> output</td>
+</tr>
+<tr>
+<td>Uncertainty</td>
+<td>Distinguish q50, mean, interval width, and empirical coverage</td>
+</tr>
+<tr>
+<td>Operations</td>
+<td>Diagnose cache, CUDA, recompilation, and OOM failures</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Design rolling holdouts and baseline comparisons</td>
+</tr>
+</tbody>
+</table>
+<h2 id="references">References</h2>
+<ul>
+<li>Google Research, <a href="https://github.com/google-research/timesfm">TimesFM repository, model API, and TimesFM 2.5 configuration</a>.</li>
+<li>Das et al., <a href="https://arxiv.org/abs/2310.10688"><em>A Decoder-only Foundation Model for Time-series Forecasting</em></a>.</li>
+<li>Streamlit, <a href="https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart"><code>st.plotly_chart</code></a> and <a href="https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_resource">resource caching</a>.</li>
+<li>Plotly, <a href="https://plotly.com/python/time-series/">time-series charts</a>.</li>
+<li>pandas, <a href="https://pandas.pydata.org/docs/user_guide/timeseries.html">time-series and date-offset functionality</a>.</li>
+</ul>
+<p><a href="03_data_engineering.md">← Previous: Data engineering</a> · <a href="../../README.md">Back to repository home</a></p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

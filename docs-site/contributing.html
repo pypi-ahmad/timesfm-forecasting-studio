@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contributing · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html" class="active">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="contributing-to-timesfm-forecast-studio">Contributing to TimesFM Forecast Studio</h1>
+<p>Thank you for improving the project. Contributions should remain focused, reproducible, and consistent with the local-first architecture.</p>
+<h2 id="before-opening-work">Before opening work</h2>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>First step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bug</td>
+<td>Search existing issues and include a minimal reproducer</td>
+</tr>
+<tr>
+<td>Feature</td>
+<td>Open a feature request describing the user problem and tradeoff</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>Identify the inaccurate or missing reader outcome</td>
+</tr>
+<tr>
+<td>Security issue</td>
+<td>Stop and follow <a href="SECURITY.md">SECURITY.md</a>; do not open a public issue</td>
+</tr>
+</tbody>
+</table>
+<p>Do not submit model weights, datasets containing restricted data, credentials, caches, or generated virtual environments.</p>
+<h2 id="development-setup">Development setup</h2>
+<pre><code class="language-powershell">git clone https://github.com/OWNER/REPOSITORY.git
+Set-Location REPOSITORY
+uv python install 3.14
+uv sync --locked --group dev
+</code></pre>
+<p><code>pyproject.toml</code> and <code>uv.lock</code> are canonical. Add or update Python dependencies with uv and commit the resulting lockfile. Keep <code>requirements.txt</code> synchronized when direct runtime dependencies change.</p>
+<h2 id="change-principles">Change principles</h2>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Expected behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Small scope</td>
+<td>Solve the reported problem without unrelated refactors</td>
+</tr>
+<tr>
+<td>Existing architecture</td>
+<td>Use current contracts, facades, error types, and test patterns</td>
+</tr>
+<tr>
+<td>Public boundaries</td>
+<td>Validate external files, URLs, credentials, and model output shapes</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td>Use environment variables or Streamlit secrets; never log token values</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>Explain changed user behavior and non-obvious tradeoffs</td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td>Prefer existing packages and justify material additions</td>
+</tr>
+</tbody>
+</table>
+<h2 id="testing">Testing</h2>
+<p>Run the complete local gate before opening a pull request:</p>
+<pre><code class="language-powershell">uv sync --locked --group dev
+uv run ruff check src tests app.py
+uv run ruff format --check src tests app.py
+uv run pytest
+</code></pre>
+<p>Behavior changes require tests of the public contract. Bug fixes should add a failing reproducer before the fix. Model-facing tests must use test doubles by default so CI does not download checkpoint weights or require a GPU.</p>
+<h2 id="documentation-style">Documentation style</h2>
+<ul>
+<li>Prefer tables and small diagrams when they clarify repeated relationships.</li>
+<li>Use exact repository values and cite current primary documentation for external APIs.</li>
+<li>Mark important operational risks with a concise <code>&gt; ⚠️</code> callout.</li>
+<li>Check relative links and keep the four tutorial chapters navigable in order.</li>
+<li>Do not claim forecast accuracy without a documented evaluation dataset and protocol.</li>
+</ul>
+<h2 id="pull-requests">Pull requests</h2>
+<p>A pull request should contain one coherent change and explain:</p>
+<ol>
+<li>What problem it solves.</li>
+<li>Why the chosen approach fits the current architecture.</li>
+<li>How reviewers can verify it.</li>
+<li>What remains risky or intentionally out of scope.</li>
+</ol>
+<p>Complete the pull-request template, link the relevant issue, and keep generated caches or debug artifacts out of the diff. Maintainers may request a smaller change if review or rollback would otherwise be difficult.</p>
+<h2 id="commit-messages">Commit messages</h2>
+<p>Use imperative, focused messages such as:</p>
+<pre><code class="language-text">fix: reject malformed forecast distribution shapes
+docs: explain frequency handling in TimesFM 2.5
+test: cover month-end future index generation
+</code></pre>
+<h2 id="conduct-and-licensing">Conduct and licensing</h2>
+<p>Participation is governed by <a href="CODE_OF_CONDUCT.md">CODE_OF_CONDUCT.md</a>. By contributing, you agree that your contribution is licensed under the repository's <a href="LICENSE">MIT License</a>.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

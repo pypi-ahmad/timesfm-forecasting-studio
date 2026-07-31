@@ -165,6 +165,8 @@ tests/
 
 The public URL resolver allows only HTTP/S, revalidates redirects, blocks private and special-purpose IP ranges, limits downloads to 200 MiB, checks supported extensions and binary signatures, and strips queries from retained metadata. Remote files remain untrusted: compressed formats can expand significantly in local memory.
 
+For a full repo-grounded attacker-model writeup (trust boundaries, abuse paths, threat table), see [`timesfm-forecasting-studio-threat-model.md`](timesfm-forecasting-studio-threat-model.md).
+
 ## Commands
 
 | Command | Purpose |

@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Complete user guide · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html" class="active">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="timesfm-forecast-studio-the-complete-guide-zero-to-hero">TimesFM Forecast Studio — the complete guide (zero to hero)</h1>
+<p>One document, start to finish: what this app is, why it exists, how to get it running on your own machine, and how to use every single feature — written so it makes sense whether you've never touched a forecasting tool before or you're a developer who wants to know exactly what happens under the hood.</p>
+<blockquote>
+<p>This guide complements, but doesn't replace, the deeper <a href="tutorial/01_timesfm_intro.md">Zero-to-Master tutorial</a> (four chapters with full math) and the <a href="../README.md">README</a> (quick reference tables). Read this one first if you want the full story in one place.</p>
+</blockquote>
+<h2 id="table-of-contents">Table of contents</h2>
+<ol>
+<li><a href="#1-what-is-this-and-why-should-you-care">What is this, and why should you care?</a></li>
+<li><a href="#2-core-ideas-explained-simply">Core ideas, explained simply</a></li>
+<li><a href="#3-clone-set-up-and-run-it">Clone, set up, and run it</a></li>
+<li><a href="#4-a-tour-of-the-app-feature-by-feature">A tour of the app, feature by feature</a></li>
+<li><a href="#5-how-it-works-under-the-hood-technical-deep-dive">How it works under the hood (technical deep dive)</a></li>
+<li><a href="#6-glossary">Glossary</a></li>
+<li><a href="#7-troubleshooting-and-faq">Troubleshooting and FAQ</a></li>
+</ol>
+<hr />
+<h2 id="1-what-is-this-and-why-should-you-care">1. What is this, and why should you care?</h2>
+<p><strong>In one sentence:</strong> TimesFM Forecast Studio is a point-and-click app that predicts future values in a time series (sales, demand, sensor readings, traffic — anything measured repeatedly over time) using Google's TimesFM 2.5 model, without you having to train, tune, or code anything.</p>
+<h3 id="why-this-matters-business-perspective">Why this matters (business perspective)</h3>
+<p>Traditionally, forecasting a new time series meant one of two things:
+- Hiring a data scientist to fit a statistical model (ARIMA, Prophet) or a neural network to <em>your specific data</em>, which takes time and expertise, and has to be redone whenever you have a new series.
+- Or eyeballing a spreadsheet trendline and hoping for the best.</p>
+<p>TimesFM changes that. It's a <strong>foundation model</strong> — like a large language model, but trained to understand the shape of time series instead of language — pretrained once by Google on a huge variety of time series data. Because of that pretraining, it can look at a series it has <em>never seen before</em> and produce a reasonable forecast immediately. No training step, no waiting, no machine learning team required. This is called <strong>zero-shot forecasting</strong>.</p>
+<p>This app wraps that model in a simple web interface so anyone — analyst, product manager, engineer, student — can:
+- Drop in a spreadsheet of historical numbers (sales, energy usage, page views, whatever you track over time).
+- Get a forecast in seconds, with a clear best-guess line <em>and</em> an honest uncertainty range (it tells you "it'll probably be between X and Y," not just one number pretending to be certain).
+- Check whether the forecast is actually any good, using built-in backtesting and accuracy metrics — before anyone bets a business decision on it.
+- Export a shareable report (PDF, HTML, CSV) for stakeholders who never open the app themselves.</p>
+<h3 id="what-it-is-not">What it is not</h3>
+<ul>
+<li>It is <strong>not</strong> a guarantee. A pretrained model making a zero-shot guess about your data is a starting point, not a certified forecast. The app itself displays this warning, and this guide repeats it: always compare the forecast against a simple baseline and real outcomes before relying on it for money, safety, or policy decisions.</li>
+<li>It does <strong>not</strong> train or fine-tune anything on your data. Your data never changes the model's weights; it's only used as the "recent context" the model reads before predicting what comes next.</li>
+<li>It runs <strong>locally on your machine</strong> (or a server you control) — your data is not uploaded to a third-party forecasting SaaS. The only network calls are the ones <em>you</em> trigger: downloading the model checkpoint from Hugging Face once, and optionally fetching a dataset from a public URL, Kaggle, or Hugging Face Hub.</li>
+</ul>
+<h3 id="who-this-is-for">Who this is for</h3>
+<table>
+<thead>
+<tr>
+<th>You are...</th>
+<th>You get...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A business/product person with a spreadsheet of historical numbers</td>
+<td>A forecast and a plain chart, no coding required</td>
+</tr>
+<tr>
+<td>An analyst who needs to justify a forecast</td>
+<td>Backtesting, accuracy metrics, and a shareable PDF/HTML report</td>
+</tr>
+<tr>
+<td>A developer integrating forecasting into a workflow</td>
+<td>A clean, tested Python codebase you can read, extend, or lift functions from</td>
+</tr>
+<tr>
+<td>A student learning about time-series foundation models</td>
+<td>A working, inspectable example plus the linked theory tutorial</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-core-ideas-explained-simply">2. Core ideas, explained simply</h2>
+<p>You don't need a statistics degree to use this app, but a few concepts explain <em>why</em> the screens are laid out the way they are.</p>
+<h3 id="time-series-context-and-horizon">Time series, context, and horizon</h3>
+<p>A <strong>time series</strong> is just numbers measured over time in order — yesterday's temperature, last month's revenue, this hour's server load. Two numbers matter when forecasting:</p>
+<ul>
+<li><strong>Context</strong>: how much history you show the model before asking for a prediction. More context usually means the model has more pattern to work with, but there's a limit (see below).</li>
+<li><strong>Horizon</strong>: how far into the future you want predictions — the next 24 hours, the next 12 months, etc.</li>
+</ul>
+<h3 id="frequency-and-a-common-misconception">Frequency (and a common misconception)</h3>
+<p><strong>Frequency</strong> is how often you take a measurement — hourly, daily, weekly, monthly. In this app, frequency does two jobs only: it checks that your timestamps are evenly spaced (no gaps, no random jumps), and it labels the future dates on the chart. It is <strong>not</strong> fed into the model as a "this is hourly data" signal — TimesFM 2.5 figures out any repeating pattern from the numbers themselves. If your data has a weekly cycle, the model has to see that cycle in the actual values, not in a metadata flag.</p>
+<h3 id="zero-shot-forecasting-in-one-analogy">Zero-shot forecasting, in one analogy</h3>
+<p>Think of a foundation model like an experienced consultant who has seen thousands of businesses' sales charts before. Show them your chart for the first time, and they can say "this looks like it's trending up with a weekly dip on weekends" — without ever having worked for your company. That's zero-shot: no training on <em>your</em> data, just pattern recognition from broad prior experience. <strong>Fine-tuning</strong>, by contrast, would be like hiring that consultant full-time for months until they specialize in only your business — this app doesn't do that; it always uses the same pretrained, unmodified checkpoint.</p>
+<h3 id="point-forecast-vs-quantile-forecast-the-uncertainty-band">Point forecast vs. quantile forecast (the uncertainty band)</h3>
+<p>Every forecast in this app gives you two things, not one:</p>
+<ul>
+<li>A <strong>point forecast</strong> (labeled q50, the median) — the single best-guess line.</li>
+<li>A <strong>quantile forecast</strong> — a range of plausible outcomes at different confidence levels (q10 through q90). The shaded band on every chart is the gap between the 10th and 90th percentile guesses: the model's honest way of saying "I'm not 100% sure, but I'm fairly confident the real value lands somewhere in this shaded zone."</li>
+</ul>
+<p>Wider bands mean more uncertainty; narrower bands mean the model is more confident. Trusting the point line alone and ignoring the band is a common (and risky) mistake.</p>
+<h3 id="patching-why-there-are-size-limits">Patching (why there are size limits)</h3>
+<p>Feeding a model one number at a time for a year of hourly data would be enormously expensive to compute. TimesFM instead groups consecutive values into <strong>patches</strong> — chunks of 32 numbers on the input side, 128 on the output side — and reasons over patches rather than individual points. That's why the app rounds your chosen context/horizon up to the nearest patch boundary, and why there's a combined size ceiling (rounded context + horizon ≤ 16,384 points). You don't need to manage this yourself — the app does the rounding for you — but it explains why an odd context length like "500" silently becomes "512" internally.</p>
+<p>For the full mathematical treatment (patch equations, the pinball loss behind quantile forecasts, zero-shot transfer formalized, and a detailed model comparison against ARIMA/Prophet/DeepAR), read <a href="tutorial/01_timesfm_intro.md">tutorial chapter 1</a>.</p>
+<hr />
+<h2 id="3-clone-set-up-and-run-it">3. Clone, set up, and run it</h2>
+<h3 id="what-you-need-first">What you need first</h3>
+<ul>
+<li><strong>Git</strong>, to clone the repository.</li>
+<li><strong><a href="https://docs.astral.sh/uv/">uv</a></strong> — the Python package/environment manager this project is built around. (A pip-compatible <code>requirements.txt</code> is also provided if you'd rather use a plain virtual environment.)</li>
+<li><strong>Python 3.14</strong> (uv can install this for you — see below).</li>
+<li>Enough disk space and RAM for PyTorch and the TimesFM checkpoint (a few GB). A GPU (NVIDIA CUDA) is optional — the app runs fine on CPU, just slower per forecast.</li>
+</ul>
+<h3 id="clone-the-repository">Clone the repository</h3>
+<pre><code class="language-powershell">git clone https://github.com/pypi-ahmad/timesfm-forecasting-studio.git
+Set-Location timesfm-forecasting-studio
+</code></pre>
+<h3 id="set-up-the-environment-recommended-uv">Set up the environment (recommended: uv)</h3>
+<pre><code class="language-powershell">uv python install 3.14
+uv sync --locked --group dev
+</code></pre>
+<p><code>uv sync --locked</code> reads the committed <code>uv.lock</code> file and installs <em>exactly</em> the pinned versions — this is what makes the setup reproducible across machines. <code>--group dev</code> also pulls in test/lint tooling (pytest, ruff), which you'll want if you plan to touch the code.</p>
+<p><strong>Alternative: plain pip + venv</strong>, if you don't want to install <code>uv</code>:</p>
+<pre><code class="language-powershell">py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+</code></pre>
+<p>The lockfile pins the CUDA build of PyTorch by default. If you're on a CPU-only machine or hit installation issues, read <a href="tutorial/02_local_installation.md">tutorial chapter 2</a> before changing the pinned PyTorch source — it walks through uv/venv/Conda setup, GPU-vs-CPU selection, and credential setup in full.</p>
+<h3 id="configure-credentials-optional-only-if-you-need-them">Configure credentials (optional, only if you need them)</h3>
+<p>Only needed if you plan to use the Kaggle or Hugging Face dataset-search features, or a gated/private Hugging Face model. Copy the example secrets file and fill in what you use:</p>
+<pre><code class="language-powershell">Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
+</code></pre>
+<p>Then edit <code>.streamlit/secrets.toml</code> (this file is gitignored — it will never be committed) and set whichever of these apply:</p>
+<table>
+<thead>
+<tr>
+<th>Purpose</th>
+<th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hugging Face access token</td>
+<td><code>HF_TOKEN</code></td>
+</tr>
+<tr>
+<td>Kaggle (current-style token)</td>
+<td><code>KAGGLE_API_TOKEN</code></td>
+</tr>
+<tr>
+<td>Kaggle (legacy username/key)</td>
+<td><code>KAGGLE_USERNAME</code>, <code>KAGGLE_KEY</code></td>
+</tr>
+<tr>
+<td>Change where local files/models are cached</td>
+<td><code>TIMESFM_APP_CACHE</code></td>
+</tr>
+<tr>
+<td>Force offline mode (use only what's already cached)</td>
+<td><code>TIMESFM_OFFLINE=true</code></td>
+</tr>
+</tbody>
+</table>
+<p>Environment variables work the same way as secrets and take priority — either approach is fine. If you skip this entirely, Upload and Public URL loading still work with no credentials at all.</p>
+<h3 id="run-the-app">Run the app</h3>
+<pre><code class="language-powershell">uv run streamlit run app.py
+</code></pre>
+<p>(or, if you used the plain-venv path: <code>streamlit run app.py</code>)</p>
+<p>Streamlit prints a local URL (typically <code>http://localhost:8501</code>) — open it in your browser. The first time you run a forecast, the app downloads the TimesFM checkpoint from Hugging Face (a few hundred MB) and caches it under <code>.cache/huggingface</code>; every forecast after that reuses the cached copy, and you can go fully offline (<code>TIMESFM_OFFLINE=true</code>) once it's cached.</p>
+<h3 id="verify-everything-works-optional-but-recommended">Verify everything works (optional but recommended)</h3>
+<pre><code class="language-powershell">uv run pytest
+</code></pre>
+<p>This runs the full unit and integration test suite — a green run confirms your environment is set up correctly before you start relying on the app.</p>
+<h3 id="why-use-this-instead-of-writing-your-own-script">Why use this instead of writing your own script?</h3>
+<p>You <em>could</em> call the TimesFM Python library directly in a notebook. This app exists for everyone who doesn't want to write that plumbing themselves: it already handles reading messy spreadsheets, validating that your timestamps are actually regular, safely fetching data from the internet without exposing your machine to obvious attacks, batching multiple files together, comparing forecast accuracy against held-out data, and producing a polished report — all steps that are easy to get subtly wrong by hand.</p>
+<hr />
+<h2 id="4-a-tour-of-the-app-feature-by-feature">4. A tour of the app, feature by feature</h2>
+<p>When the app opens, you'll see a <strong>sidebar</strong> (always visible) and a <strong>workflow stage selector</strong> across the top (Load &amp; configure → Analyze → Forecast → Evaluate &amp; anomalies → Export). There's also a <strong>Manual simulator</strong> toggle in the sidebar for quick, no-file forecasts. Here's every control, explained.</p>
+<h3 id="the-sidebar-always-visible">The sidebar (always visible)</h3>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Plain-language advice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Compute device</strong> (auto / cpu / cuda)</td>
+<td>Chooses what hardware runs the model</td>
+<td>Leave on "auto" unless you know you have a working NVIDIA GPU and want to force CPU for testing</td>
+</tr>
+<tr>
+<td><strong>Context length</strong></td>
+<td>How much history to feed the model (2 up to your data's max, capped at 16,256)</td>
+<td>More history usually helps, but very long context takes longer to compute; start around 512–1,024 and adjust</td>
+</tr>
+<tr>
+<td><strong>Forecast horizon</strong></td>
+<td>How many future steps to predict (1–1,024)</td>
+<td>Match this to what you actually need to act on — forecasting 1,000 steps when you only care about the next 7 days just adds noise and compute time</td>
+</tr>
+<tr>
+<td><strong>Frequency</strong></td>
+<td>Auto, or force hourly/daily/weekly/month-start/month-end/quarterly/yearly</td>
+<td>Leave on "Auto" unless the app can't infer it from your timestamps</td>
+</tr>
+<tr>
+<td><strong>API configuration captions</strong></td>
+<td>Shows whether Kaggle/Hugging Face credentials were detected, and which model checkpoint is pinned</td>
+<td>Read-only status; edit <code>.streamlit/secrets.toml</code> or environment variables to change it</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-1-load-configure">Stage 1 — Load &amp; configure</h3>
+<p>Pick a data source from four tabs:</p>
+<p><strong>Upload.</strong> Drag in one or more CSV, Parquet, or XLSX files directly from your computer. Each file is validated (correct file extension, correct magic-byte signature so a renamed file can't sneak in as something it isn't), size-capped, and stored in a local content-addressed cache (named by the file's SHA-256 hash, so the same file is never downloaded/stored twice).</p>
+<p><strong>Public URL.</strong> Paste a direct link to a CSV/Parquet/XLSX file on the public internet and click Download. Behind the scenes, the app checks that the URL only points at genuinely public internet addresses — it deliberately refuses to fetch anything on your own private network (localhost, internal IP ranges, cloud-metadata addresses), even if a redirect tries to sneak one in. This exists purely to protect <em>you</em>: without it, a malicious link could otherwise trick your own app into probing machines on your local network. You don't need to do anything to benefit from this — it's automatic.</p>
+<p><strong>Kaggle.</strong> Search Kaggle's public dataset catalog by keyword (requires the Kaggle credentials from step 3), pick a result, and download it. If the dataset contains multiple tabular files, you'll get to choose which one to use.</p>
+<p><strong>Hugging Face.</strong> Search Hugging Face's dataset hub, list the files inside a chosen dataset repository, and download the one you want (an access token is optional unless the dataset is gated/private).</p>
+<p>Every dataset you load appears in an <strong>inventory table</strong> at the bottom of this stage — name, source, size, and a short hash so you can tell files apart even with duplicate names. A <strong>Clear loaded datasets</strong> button resets your working session (loaded files, forecasts, analysis results) without touching the on-disk cache, so re-loading the same file later is instant.</p>
+<h3 id="stage-2-analyze-exploratory-data-analysis">Stage 2 — Analyze (exploratory data analysis)</h3>
+<p>Pick which loaded dataset, which date/time column, and which numeric column to treat as the target, plus a <strong>seasonal period</strong> (how many steps make up one repeating cycle — e.g. 24 for hourly data with a daily cycle, 7 for daily data with a weekly cycle; the app guesses a sensible default from your frequency). You'll then see:</p>
+<table>
+<thead>
+<tr>
+<th>Chart / stat</th>
+<th>What it tells you, in plain terms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summary metrics (count, missing, mean, std, median, IQR)</td>
+<td>The basic shape of your numbers — how many points, how spread out, any gaps</td>
+</tr>
+<tr>
+<td>Trend and rolling mean</td>
+<td>Your raw series plus a smoothed line, so you can see the trend without the noise</td>
+</tr>
+<tr>
+<td>Distribution + box plot</td>
+<td>How your values are spread — clustered tightly, or with a long tail of extreme values</td>
+</tr>
+<tr>
+<td>Empirical cumulative distribution (ECDF)</td>
+<td>What fraction of your data falls below any given value — useful for "what's a typical vs. an unusual reading" questions</td>
+</tr>
+<tr>
+<td>Seasonal profile</td>
+<td>Average value at each position in the cycle (e.g. average for "hour 3 of the day") — reveals a repeating pattern if one exists</td>
+</tr>
+<tr>
+<td>Autocorrelation (ACF)</td>
+<td>How strongly a value is related to earlier values at various lags — spikes tell you where the repeating structure is</td>
+</tr>
+<tr>
+<td>STL decomposition</td>
+<td>Splits your series into trend, seasonal, and leftover ("residual") components, so you can see each influence separately</td>
+</tr>
+<tr>
+<td>Outliers (robust z-score)</td>
+<td>Flags points that are unusually far from the typical value, using a method that isn't thrown off by a few extreme outliers itself</td>
+</tr>
+</tbody>
+</table>
+<p>This stage is entirely optional but genuinely useful before forecasting — it tells you whether your data actually <em>has</em> a seasonal pattern for the model to pick up on, and whether there are data-quality problems worth fixing first.</p>
+<h3 id="stage-3-forecast">Stage 3 — Forecast</h3>
+<p>For each loaded dataset, you'll map its columns (date/time column, numeric target, whether the target can go negative) and choose an approach:</p>
+<ul>
+<li><strong>Standard TimesFM</strong> — the default. Uses only the historical values of your target column.</li>
+<li><strong>TimesFM + XReg covariates</strong> — an advanced mode for when you have <em>other</em> known columns that might help explain the target (e.g. a promotional-flag column, temperature readings, a categorical "is holiday" column) and you know their <em>future</em> values too (or can supply blank placeholder rows for the model to fill in via the linear XReg component). To use it: leave the future rows of your target column blank for the horizon you want, keep the covariate columns filled in through that same future horizon, and pick which columns are numerical vs. categorical covariates. There are two blending modes ("xreg + timesfm" vs. "timesfm + xreg") controlling which component leads.</li>
+</ul>
+<p>Click <strong>Forecast all datasets</strong> to run everything in one batch — datasets sharing the same horizon and positivity setting are forecast together for efficiency; anything that fails gets an individual retry so one bad file doesn't sink the rest. Each result shows an interactive chart (history, shaded uncertainty band, and the point forecast) and a full table of every quantile (q10 through q90) alongside the point/mean forecast.</p>
+<h3 id="stage-4-evaluate-anomalies">Stage 4 — Evaluate &amp; anomalies</h3>
+<p>This is where you check whether the forecast is actually trustworthy, using <strong>rolling-origin backtesting</strong>: the app repeatedly pretends it's at an earlier point in your history, forecasts forward, and compares that forecast against what <em>actually</em> happened (which you already have, since it's history). Choose how many such backtest windows to run (1–10) and click <strong>Run rolling backtest</strong>. You'll get:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Plain-language meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MAE (mean absolute error)</td>
+<td>On average, how far off the point forecast was, in your original units</td>
+</tr>
+<tr>
+<td>RMSE (root mean squared error)</td>
+<td>Like MAE, but penalizes big misses more heavily</td>
+</tr>
+<tr>
+<td>Bias</td>
+<td>Whether the model systematically over- or under-predicts</td>
+</tr>
+<tr>
+<td>sMAPE / WAPE</td>
+<td>Error expressed as a percentage, so you can compare across series with different scales</td>
+</tr>
+<tr>
+<td>MASE / RMSSE</td>
+<td>Error compared against a naive "just repeat the last value" baseline — below 1 means TimesFM beat the naive guess</td>
+</tr>
+<tr>
+<td>Pinball loss / mean WQL</td>
+<td>How good the <em>uncertainty band</em> is, not just the point guess — rewards a band that's honest about its confidence</td>
+</tr>
+<tr>
+<td>Coverage (10–90)</td>
+<td>What fraction of actual values really did fall inside the predicted q10–q90 band (should be close to 80%)</td>
+</tr>
+<tr>
+<td>Winkler score</td>
+<td>A single number that penalizes both an overly wide band <em>and</em> actual values that fall outside it</td>
+</tr>
+</tbody>
+</table>
+<p>Below the metrics, an <strong>anomaly table</strong> flags any actual values that fell <em>outside</em> the predicted q10–q90 band, with a severity score showing how far outside. This is a practical way to catch unusual events (a spike, an outage, a data error) after the fact.</p>
+<h3 id="stage-5-export">Stage 5 — Export</h3>
+<p>Once you have a forecast (and optionally analysis/backtest results), download:</p>
+<ul>
+<li><strong>Forecast CSV</strong> — just the numbers.</li>
+<li><strong>Interactive HTML</strong> — a self-contained report with live Plotly charts, viewable in any browser, shareable with someone who has never opened this app.</li>
+<li><strong>PDF report</strong> — a static, printable version with the same tables and a forecast chart.</li>
+<li><strong>Complete ZIP</strong> — all of the above plus a <code>manifest.json</code> recording exactly which dataset, model, model revision, and compute device produced the results — useful for reproducibility and audit trails.</li>
+</ul>
+<h3 id="manual-simulator-sidebar-toggle">Manual simulator (sidebar toggle)</h3>
+<p>No file needed. Paste a comma- or newline-separated list of numbers directly into a text box, set a horizon, and forecast immediately. Useful for quick "what would TimesFM say about this sequence" experiments, teaching, or sanity-checking the model's behavior without preparing a spreadsheet first.</p>
+<hr />
+<h2 id="5-how-it-works-under-the-hood-technical-deep-dive">5. How it works under the hood (technical deep dive)</h2>
+<p>This section is for developers who want to read, extend, or trust the codebase. Everything above is a black box; this is what's inside it.</p>
+<h3 id="project-layout">Project layout</h3>
+<pre><code class="language-text">app.py                             entry point — calls render_app()
+src/loader.py                      stable facade: load a file or URL into a validated DataFrame
+src/integrations.py                Kaggle and Hugging Face search/download clients
+src/predictor.py                   device-aware, Pandas-in/Pandas-out forecasting facade
+src/timesfm_app/
+  config.py                       AppSettings — reads env vars / st.secrets, pins model revision
+  contracts.py                    frozen dataclasses defining every boundary: ForecastRequest,
+                                   ForecastResult, SeriesSpec, ResolvedAsset, DataQualityReport...
+  ingestion/
+    readers.py                    CSV / Parquet / XLSX parsing
+    resolvers.py                  upload caching + SSRF-hardened public-URL download
+    providers.py                  Kaggle / Hugging Face file resolution
+  forecasting/
+    preprocessing.py              turns a raw DataFrame + column choice into a validated series
+    runtime.py                    TimesFMRuntime — loads the checkpoint, compiles, runs inference
+  analysis.py                     exploratory data analysis (trend, ACF, STL, outliers...)
+  evaluation.py                   rolling-origin backtesting and accuracy metrics
+  manual_datasets.py              bundled example dataset builders (FRED, NOAA, UCI, NYC TLC)
+  reports.py                      CSV / HTML / PDF / ZIP report generation
+  ui/                              Streamlit pages, one file per screen/concern
+tests/
+  unit/                            one test file per module above
+  integration/                     model-free Streamlit smoke tests
+</code></pre>
+<h3 id="the-data-flow-end-to-end">The data flow, end to end</h3>
+<pre class="mermaid">flowchart LR
+    A[Upload / URL / Kaggle / HF] --> B[loader.py: read_tabular]
+    B --> C[preprocessing.py: prepare_series]
+    C --> D[contracts.py: ForecastRequest]
+    D --> E[forecasting/runtime.py: TimesFMRuntime]
+    E --> F[contracts.py: ForecastResult]
+    F --> G[ui: charts + tables]
+    F --> H[evaluation.py: backtest metrics]
+    F --> I[reports.py: CSV/HTML/PDF/ZIP]
+</pre>
+<ol>
+<li><strong>Ingestion</strong> (<code>ingestion/resolvers.py</code>, <code>ingestion/providers.py</code>) turns "a file, a URL, or a dataset handle" into a <code>ResolvedAsset</code> — a content-hashed, validated path on local disk. This is the only layer that touches the network or untrusted bytes, and it's the most defensively written part of the codebase (see the security note below).</li>
+<li><strong>Preprocessing</strong> (<code>forecasting/preprocessing.py::prepare_series</code>) takes a raw <code>DataFrame</code> plus your chosen date/target columns and produces a <code>PreparedSeries</code>: a clean, gap-checked, regularly-spaced <code>float32</code> array plus a <code>DataQualityReport</code> describing what was trimmed or flagged along the way. This is where "duplicate timestamps," "irregular spacing," and "trailing missing values" get rejected outright, while leading gaps get trimmed and internal gaps get reported (TimesFM interpolates small internal gaps itself).</li>
+<li><strong>Contracts</strong> (<code>contracts.py</code>) are frozen dataclasses that validate themselves in <code>__post_init__</code> — e.g. <code>ForecastRequest</code> computes and validates the patch-rounded <code>compile_context</code>/<code>compile_horizon</code> the moment it's constructed, so an invalid request can never reach the model layer at all.</li>
+<li><strong>Runtime</strong> (<code>forecasting/runtime.py::TimesFMRuntime</code>) lazily loads the pinned TimesFM checkpoint on first use, recompiles only when the rounded context/horizon/positivity combination actually changes (an expensive step you want to avoid repeating), and serializes access with a lock since PyTorch models aren't safely called from multiple threads at once. <code>predictor.py::TimesFMPredictor</code> wraps this in a simpler, Pandas-oriented facade used by most of the UI.</li>
+<li><strong>Evaluation</strong> (<code>evaluation.py</code>) implements rolling-origin backtesting from scratch on top of the same <code>TimesFMRuntime.forecast</code> call — no separate evaluation library, just repeated calls against held-out windows.</li>
+<li><strong>UI</strong> (<code>ui/*.py</code>) is a thin Streamlit layer: each file owns one screen or concern (<code>workbench_page.py</code> orchestrates the five-stage flow, <code>charts.py</code> builds the Plotly figure, <code>results.py</code> builds the results table, <code>state.py</code> centralizes session-state cleanup). Business logic deliberately stays out of this layer — UI files call into <code>contracts</code>/<code>forecasting</code>/<code>evaluation</code>, never the other way around.</li>
+</ol>
+<h3 id="a-security-relevant-detail-worth-knowing">A security-relevant detail worth knowing</h3>
+<p>The public-URL download path (<code>ingestion/resolvers.py::download_public_url</code>) is the one place this app accepts a URL you type in and fetches it. It: only allows <code>http</code>/<code>https</code>, rejects URLs with embedded credentials, resolves the hostname and rejects private/loopback/link-local/reserved IP ranges, re-validates on every redirect hop (up to 4), pins the actual network connection to the address it just validated (closing a DNS-rebinding timing gap), caps downloads at 200 MiB, and checks both the file extension and the first few bytes ("magic bytes") before treating a download as real Parquet/XLSX data. None of this requires you to do anything — it's automatic — but it's worth knowing this exists if you're evaluating the app for use in your own environment. A full attacker-model writeup lives in <code>timesfm-forecasting-studio-threat-model.md</code> at the repository root.</p>
+<h3 id="testing">Testing</h3>
+<pre><code class="language-powershell">uv run pytest              # full unit + integration suite
+uv run ruff check src tests app.py       # lint
+uv run ruff format --check src tests app.py   # formatting check
+</code></pre>
+<p>Unit tests mirror the module layout (<code>tests/unit/test_ingestion.py</code>, <code>test_forecasting.py</code>, <code>test_evaluation.py</code>, etc.) and use fakes/mocks for the actual TimesFM model so the suite runs fast without downloading a checkpoint. Integration tests exercise the Streamlit app itself without requiring the model, confirming the UI wiring holds together.</p>
+<hr />
+<h2 id="6-glossary">6. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Time series</strong></td>
+<td>A sequence of values measured in order over time</td>
+</tr>
+<tr>
+<td><strong>Context</strong></td>
+<td>The historical values you feed the model before asking for a forecast</td>
+</tr>
+<tr>
+<td><strong>Horizon</strong></td>
+<td>How many future steps you're asking the model to predict</td>
+</tr>
+<tr>
+<td><strong>Frequency</strong></td>
+<td>The spacing of your timestamps (hourly, daily, ...) — used to validate regularity and label future dates, not fed to the model as a signal</td>
+</tr>
+<tr>
+<td><strong>Zero-shot forecasting</strong></td>
+<td>Predicting on data the model was never specifically trained on, using only its general pretrained knowledge</td>
+</tr>
+<tr>
+<td><strong>Foundation model</strong></td>
+<td>A model pretrained broadly and reused across many tasks/datasets without retraining</td>
+</tr>
+<tr>
+<td><strong>Point forecast (q50)</strong></td>
+<td>The single best-guess predicted value — the median of the model's distribution</td>
+</tr>
+<tr>
+<td><strong>Quantile forecast</strong></td>
+<td>A predicted value at a given confidence level (e.g. q10 = "only 10% chance the real value is lower than this")</td>
+</tr>
+<tr>
+<td><strong>Patching</strong></td>
+<td>Grouping consecutive values into fixed-size chunks (32 in, 128 out) so the model can process long histories efficiently</td>
+</tr>
+<tr>
+<td><strong>XReg / covariates</strong></td>
+<td>Extra known columns (besides the target) that may help explain or adjust the forecast</td>
+</tr>
+<tr>
+<td><strong>Rolling-origin backtest</strong></td>
+<td>Repeatedly forecasting from earlier points in known history and comparing against what actually happened, to measure accuracy honestly</td>
+</tr>
+<tr>
+<td><strong>MAE / RMSE / sMAPE / WAPE / MASE / RMSSE</strong></td>
+<td>Different ways of scoring how close the point forecast was to reality</td>
+</tr>
+<tr>
+<td><strong>Pinball loss / WQL / coverage / Winkler score</strong></td>
+<td>Ways of scoring how good the <em>uncertainty band</em> was, not just the point guess</td>
+</tr>
+<tr>
+<td><strong>SSRF (Server-Side Request Forgery)</strong></td>
+<td>An attack where a server is tricked into fetching an internal/private address instead of the intended public one; this app has hardening specifically against it on the public-URL feature</td>
+</tr>
+<tr>
+<td><strong>Content-addressed cache</strong></td>
+<td>Storing a file under a name derived from its own content hash, so identical files are never duplicated and tampering is detectable</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-troubleshooting-and-faq">7. Troubleshooting and FAQ</h2>
+<p><strong>"Could not infer a regular frequency" / "Timestamps are not regular"</strong> — Your date column has gaps or irregular spacing at the frequency the app guessed. Pick an explicit frequency in the sidebar, or clean up your source data so timestamps are evenly spaced.</p>
+<p><strong>"Rounded context plus horizon exceeds TimesFM limit of 16,384 points"</strong> — You asked for a combination of context + horizon that, after rounding to patch boundaries, is too large for the model. Reduce context length or horizon.</p>
+<p><strong>Forecast is slow the first time</strong> — The first forecast in a session downloads and loads the model checkpoint (and compiles it for your chosen context/horizon). Subsequent forecasts with the same rounded context/horizon/positivity reuse the compiled model and are much faster.</p>
+<p><strong>"CUDA was requested but is unavailable"</strong> — You selected <code>cuda</code> as the compute device but no working NVIDIA GPU/driver was detected. Switch to <code>auto</code> or <code>cpu</code>.</p>
+<p><strong>Kaggle/Hugging Face search says "not configured"</strong> — You haven't set the relevant credentials. See <a href="#configure-credentials-optional-only-if-you-need-them">section 3</a> — Upload and Public URL work with no credentials at all if you don't need those sources.</p>
+<p><strong>"URL resolves to a private or otherwise unsafe address"</strong> — The app deliberately refuses to fetch that address; see the security note in <a href="#a-security-relevant-detail-worth-knowing">section 5</a>. This isn't a bug — the URL you gave it points at a private/internal network address, which the app will never fetch.</p>
+<p><strong>Why is my forecast confidently wrong?</strong> — Zero-shot means no training on your specific series. Check the seasonal period and context length on the Analyze stage, run a rolling backtest before trusting the numbers, and compare against a naive baseline (MASE/RMSSE below 1 means TimesFM is beating "just repeat the last value").</p>
+<hr />
+<p><em>Questions this guide doesn't answer, or feedback on it? See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> and <a href="../SUPPORT.md">SUPPORT.md</a>.</em></p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

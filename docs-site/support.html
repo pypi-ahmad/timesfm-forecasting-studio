@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html" class="active">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="support">Support</h1>
+<h2 id="find-the-right-channel">Find the right channel</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Channel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Installation or usage question</td>
+<td>Read the tutorial and search existing issues first</td>
+</tr>
+<tr>
+<td>Reproducible application defect</td>
+<td>Bug report issue form</td>
+</tr>
+<tr>
+<td>Focused product improvement</td>
+<td>Feature request issue form</td>
+</tr>
+<tr>
+<td>Incorrect or unclear documentation</td>
+<td>Documentation issue form</td>
+</tr>
+<tr>
+<td>Vulnerability or sensitive report</td>
+<td>Follow <a href="SECURITY.md">SECURITY.md</a>, never a public issue</td>
+</tr>
+<tr>
+<td>TimesFM model behavior/API</td>
+<td>Consult the <a href="https://github.com/google-research/timesfm">official TimesFM repository</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="before-requesting-help">Before requesting help</h2>
+<p>Include the smallest safe evidence that reproduces the problem:</p>
+<ul>
+<li>Operating system and Python version.</li>
+<li>Output of <code>uv --version</code> and the relevant package version.</li>
+<li>Auto/CPU/CUDA selection and non-secret Torch device information.</li>
+<li>Exact command and full error message.</li>
+<li>A synthetic or public minimal dataset.</li>
+<li>Context, horizon, and frequency values.</li>
+</ul>
+<p>Do not post access tokens, <code>kaggle.json</code>, <code>.streamlit/secrets.toml</code>, private dataset rows, signed URL queries, or full environment dumps.</p>
+<h2 id="project-boundaries">Project boundaries</h2>
+<p>This is a community repository without guaranteed response times, hosted service support, forecasting advice, or accuracy guarantees. Questions about account billing, provider outages, gated assets, and upstream license terms belong with the relevant provider.</p>
+<p>For installation and forecasting guidance, start with the <a href="docs/tutorial/01_timesfm_intro.md">Zero-to-Master tutorial</a>.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>
