@@ -44,7 +44,7 @@ def validate_public_url(
     url: str,
     *,
     host_resolver: HostResolver | None = None,
-) -> None:
+) -> list[str]:
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"}:
         raise SourceResolutionError("Only HTTP and HTTPS dataset URLs are allowed.")
@@ -71,6 +71,7 @@ def validate_public_url(
             or ip.is_unspecified
         ):
             raise SourceResolutionError("URL resolves to a private or otherwise unsafe address.")
+    return addresses
 
 
 def download_public_url(
@@ -87,8 +88,27 @@ def download_public_url(
     temporary_path: Path | None = None
     try:
         for _ in range(4):
-            validate_public_url(current_url, host_resolver=host_resolver)
-            with active_client.stream("GET", current_url) as response:
+            # Connect to the address just validated instead of letting httpx
+            # re-resolve the hostname: closes the DNS-rebinding TOCTOU window
+            # between the private-IP check above and the socket connect below.
+            addresses = validate_public_url(current_url, host_resolver=host_resolver)
+            parsed = urlsplit(current_url)
+            pinned_url = urlunsplit(
+                (
+                    parsed.scheme,
+                    _pinned_netloc(addresses[0], parsed.port),
+                    parsed.path,
+                    parsed.query,
+                    "",
+                )
+            )
+            request_headers = {"Host": parsed.netloc}
+            request_extensions = (
+                {"sni_hostname": parsed.hostname} if parsed.scheme == "https" else {}
+            )
+            with active_client.stream(
+                "GET", pinned_url, headers=request_headers, extensions=request_extensions
+            ) as response:
                 if response.is_redirect:
                     location = response.headers.get("location")
                     if not location:
@@ -158,6 +178,11 @@ def _validate_signature(suffix: str, prefix: bytes) -> None:
 
 def _resolve_host(hostname: str) -> Iterable[str]:
     return {entry[4][0] for entry in socket.getaddrinfo(hostname, None)}
+
+
+def _pinned_netloc(address: str, port: int | None) -> str:
+    host = f"[{address}]" if ":" in address else address
+    return host if port is None else f"{host}:{port}"
 
 
 def _safe_locator(url: str) -> str:
