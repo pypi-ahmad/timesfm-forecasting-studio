@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual datasets · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html" class="active">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="manual-dataset-suite">Manual dataset suite</h1>
+<p>Create the local dataset suite from the repository root:</p>
+<pre><code class="language-powershell">uv run python scripts/download_manual_datasets.py
+</code></pre>
+<p>The command writes five ready-to-upload files to <code>manual-data/</code>. The directory is
+gitignored; it is safe to refresh or delete locally and is never committed.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Source</th>
+<th>Select in the app</th>
+<th>Frequency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01_us_unemployment_monthly.csv</code></td>
+<td><a href="https://fred.stlouisfed.org/series/UNRATE">FRED UNRATE</a></td>
+<td><code>timestamp</code>, <code>unemployment_rate_pct</code></td>
+<td>Monthly</td>
+</tr>
+<tr>
+<td><code>02_central_park_daily_temperature.csv</code></td>
+<td><a href="https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily">NOAA GHCN-D</a></td>
+<td><code>timestamp</code>, <code>max_temperature_c</code></td>
+<td>Daily</td>
+</tr>
+<tr>
+<td><code>03_appliance_energy_10min.csv</code></td>
+<td><a href="https://archive.ics.uci.edu/dataset/374/appliances%2Benergy%2Bprediction">UCI Appliances Energy Prediction</a></td>
+<td><code>timestamp</code>, <code>energy_wh</code></td>
+<td>10 minutes</td>
+</tr>
+<tr>
+<td><code>04_capital_bikeshare_hourly.xlsx</code></td>
+<td><a href="https://archive.ics.uci.edu/dataset/275/bike%2Bsharing%2Bdataset">UCI Bike Sharing</a></td>
+<td><code>series</code> sheet, <code>timestamp</code>, <code>rentals</code></td>
+<td>Hourly</td>
+</tr>
+<tr>
+<td><code>05_nyc_yellow_taxi_hourly.parquet</code></td>
+<td><a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page">NYC TLC Yellow Taxi Trip Records</a></td>
+<td><code>timestamp</code>, <code>pickup_count</code></td>
+<td>Hourly</td>
+</tr>
+</tbody>
+</table>
+<p>The FRED output ends in September 2025 and the NOAA output ends in December 2025,
+avoiding incomplete upstream releases while keeping fixed historical ranges. The UCI
+Appliances and Bike Sharing datasets are distributed under CC BY 4.0; retain the
+linked attribution when sharing derived files. The NYC file is an hourly aggregate
+of January 2025 pickup timestamps, with empty hours represented as zero pickups.</p>
+<p>For a quick smoke test, use context length 512 and horizon 128 for the hourly and
+10-minute series, and context length 120 with horizon 12 for the monthly series.</p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

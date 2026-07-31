@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html" class="active">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="changelog">Changelog</h1>
+<h2 id="020-2026-07-23">[0.2.0] - 2026-07-23</h2>
+<h3 id="added">Added</h3>
+<ul>
+<li>Guided TimesFM inference workflow for loading, analyzing, forecasting, evaluating, and exporting.</li>
+<li>Comprehensive time-series EDA with quality, distribution, trend, seasonality, ACF, STL, ADF, and robust outlier diagnostics.</li>
+<li>Rolling-origin backtesting with point, probabilistic, interval, latency, and throughput metrics.</li>
+<li>Quantile-based forecast anomaly detection.</li>
+<li>TimesFM XReg forecasting with dynamic numerical and categorical covariates.</li>
+<li>Forecast CSV, interactive HTML, vector PDF, and complete ZIP report downloads with provenance manifests.</li>
+<li>Five high-quality manual test datasets and a reproducible download script.</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li>Clear loaded datasets now resets the uploader widget and all dataset-derived session results.</li>
+</ul>
+<h3 id="changed">Changed</h3>
+<ul>
+<li>Added pinned CPU-compatible dependencies for XReg, statistical diagnostics, and PDF reports.</li>
+</ul>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial 1 · Foundations · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html" class="active">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="timesfm-zero-to-master-1-foundations">TimesFM Zero to Master — 1. Foundations</h1>
+<p><a href="../../README.md#zero-to-master-tutorial">Tutorial home</a> · <strong>Part 1 of 4</strong> · <a href="02_local_installation.md">Next: Local installation →</a></p>
+<p>This chapter builds the mental model needed to use TimesFM responsibly. You will learn what a <strong>time-series foundation model (TSFM)</strong> is, how zero-shot forecasting differs from fitting a model to one dataset, and where TimesFM sits beside ARIMA, Prophet, and DeepAR.</p>
+<h2 id="1-time-series-and-forecasting">1. Time series and forecasting</h2>
+<p>A <strong>time series</strong> is an ordered sequence of measurements. For a univariate series,</p>
+<p>[
+\mathbf{y}_{1:T}=(y_1,y_2,\ldots,y_T),
+]</p>
+<p>each value is associated with an ordered timestamp. Forecasting uses a context window of the latest (C) observations to estimate a future horizon of (H) observations:</p>
+<p>[
+\hat{\mathbf{y}}<em>{T+1:T+H}=f(\mathbf{y}</em>{T-C+1:T}).
+]</p>
+<p>The repository intentionally implements <strong>univariate</strong> forecasting: one numeric target is passed to the model. Other uploaded columns may help you inspect the dataset, but they are not covariates.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning in this repository</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Observation</strong></td>
+<td>One timestamped target value</td>
+<td>Hourly energy demand at 14:00</td>
+</tr>
+<tr>
+<td><strong>Context</strong></td>
+<td>Historical values supplied to the model</td>
+<td>Previous 720 hours</td>
+</tr>
+<tr>
+<td><strong>Forecast horizon</strong></td>
+<td>Number of future steps requested</td>
+<td>Next 48 hours</td>
+</tr>
+<tr>
+<td><strong>Frequency</strong></td>
+<td>Spacing of the timestamp grid</td>
+<td>Hourly, daily, month-end</td>
+</tr>
+<tr>
+<td><strong>Point forecast</strong></td>
+<td>One estimate per future step</td>
+<td>The q50/median path</td>
+</tr>
+<tr>
+<td><strong>Quantile forecast</strong></td>
+<td>Estimate at probability level (\tau)</td>
+<td>q10, q50, q90</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Ordered does not mean regular.</strong> This application requires a regular timestamp grid. A sorted series with random gaps is still irregular and is rejected until repaired.</p>
+</blockquote>
+<h2 id="2-what-is-a-time-series-foundation-model">2. What is a time-series foundation model?</h2>
+<p>A <strong>foundation model</strong> is pretrained on broad data and reused across downstream tasks. A TSFM applies this idea to temporal sequences. Rather than estimating fresh parameters from only the uploaded series, TimesFM starts with parameters learned from a large and diverse pretraining corpus.</p>
+<pre class="mermaid">flowchart LR
+    A[Many pretraining series] --> B[Patch and normalize sequences]
+    B --> C[Train shared decoder parameters θ*]
+    C --> D[Published checkpoint]
+    E[Previously unseen local series] --> F[Select recent context]
+    D --> G[Zero-shot inference]
+    F --> G
+    G --> H[Point and quantile forecasts]
+</pre>
+<p>Google describes TimesFM as a patched, decoder-only foundation model trained for zero-shot forecasting across domains and granularities. The current repository uses <strong>TimesFM 2.5 200M for PyTorch</strong>, pinned to a specific Hugging Face revision. See the <a href="https://github.com/google-research/timesfm">official TimesFM repository</a>, the <a href="https://arxiv.org/abs/2310.10688">research paper</a>, and the <a href="https://research.google/blog/a-decoder-only-foundation-model-for-time-series-forecasting/">Google Research overview</a>.</p>
+<h3 id="21-patching">2.1 Patching</h3>
+<p>Passing every scalar as a separate transformer token would make long histories expensive. TimesFM groups consecutive observations into <strong>input patches</strong>. A simplified patch is</p>
+<p>[
+\mathbf{p}<em>i=[y</em>{(i-1)P+1},\ldots,y_{iP}],
+]</p>
+<p>where (P) is the input patch length. This app reflects TimesFM 2.5's 32-point input patch and 128-point output patch when it rounds compilation sizes.</p>
+<pre class="mermaid">flowchart LR
+    A[Scalar history y1 … yC] --> B[32-value input patches]
+    B --> C[Patch embeddings]
+    C --> D[Decoder stack]
+    D --> E[128-step output patches]
+    E --> F[Requested H-step forecast]
+</pre>
+<p>Patching is not seasonal aggregation. Values are not averaged into a weekly or monthly statistic; they remain ordered within the model representation.</p>
+<h3 id="22-probabilistic-outputs">2.2 Probabilistic outputs</h3>
+<p>For a quantile level (\tau\in(0,1)), quantile regression is commonly expressed with the pinball loss</p>
+<p>[
+\rho_\tau(u)=u\left(\tau-\mathbb{1}[u&lt;0]\right),
+\qquad u=y-\hat y_\tau.
+]</p>
+<p>TimesFM 2.5 can produce a continuous-quantile forecast. Its Python interface returns ten channels per future step: the mean followed by q10 through q90. This application displays <strong>q50 as the point forecast</strong> and shades q10–q90. These are model-estimated predictive quantiles, not a guarantee that 80% of future observations will fall inside the band on every dataset.</p>
+<h2 id="3-zero-shot-transfer-learning">3. Zero-shot transfer learning</h2>
+<p>Let (\mathcal D_{\text{pre}}) denote the pretraining collection and (\mathcal L) its forecasting objective. Pretraining can be summarized as</p>
+<p>[
+\theta^*=\arg\min_\theta
+\mathbb E_{\mathbf y\sim\mathcal D_{\text{pre}}}
+\left[\mathcal L\big(f_\theta(\mathbf y_{1:t}),\mathbf y_{t+1:t+H}\big)\right].
+]</p>
+<p>For a new series (\mathbf z) that was not used to fit task-specific parameters, zero-shot inference is</p>
+<p>[
+\hat{\mathbf z}<em>{T+1:T+H}
+=f</em>{\theta^*}(\mathbf z_{T-C+1:T}).
+]</p>
+<p>The defining property is that (\theta^*) remains fixed: the app downloads and runs the checkpoint but does not fine-tune it on the uploaded series.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Data used</th>
+<th style="text-align: right;">Parameters changed?</th>
+<th style="text-align: right;">Happens in this app?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foundation pretraining</td>
+<td>Large multi-domain corpus</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">No; performed by Google</td>
+</tr>
+<tr>
+<td>Zero-shot inference</td>
+<td>User-selected context</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr>
+<td>Fine-tuning</td>
+<td>Labeled target-domain windows</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">No</td>
+</tr>
+<tr>
+<td>Backtesting</td>
+<td>Historical holdout windows</td>
+<td style="text-align: right;">No model change required</td>
+<td style="text-align: right;">Not automated</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Zero-shot is not zero-validation.</strong> It removes task-specific training, not the need to compare forecasts against held-out observations and domain baselines.</p>
+</blockquote>
+<h2 id="4-timesfm-versus-established-approaches">4. TimesFM versus established approaches</h2>
+<p>The models solve related problems but make different tradeoffs. ARIMA and Prophet are normally fit per series. DeepAR learns a global autoregressive model from a collection of related series. TimesFM is pretrained broadly and can forecast a new series without target-domain fitting.</p>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>ARIMA</th>
+<th>Prophet</th>
+<th>DeepAR</th>
+<th>TimesFM 2.5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core mechanism</td>
+<td>Autoregression, differencing, moving-average errors</td>
+<td>Additive trend, seasonalities, holidays</td>
+<td>Global autoregressive recurrent network</td>
+<td>Patched decoder-only foundation model</td>
+</tr>
+<tr>
+<td>Typical fitting</td>
+<td>One model per series</td>
+<td>One model per series</td>
+<td>Train on related-series panel</td>
+<td>Pretrained checkpoint; zero-shot locally</td>
+</tr>
+<tr>
+<td>Data assumptions</td>
+<td>Stationarity after differencing; specified orders</td>
+<td>Additive decomposable structure</td>
+<td>Representative training panel and likelihood</td>
+<td>Sufficient ordered context resembling learned patterns</td>
+</tr>
+<tr>
+<td>Seasonality</td>
+<td>Seasonal ARIMA orders</td>
+<td>Explicit Fourier seasonalities</td>
+<td>Learned from training data</td>
+<td>Learned implicitly from values; no 2.5 frequency token</td>
+</tr>
+<tr>
+<td>Exogenous features</td>
+<td>Supported by ARIMAX variants</td>
+<td>Regressors and holidays</td>
+<td>Dynamic/static features in full formulation</td>
+<td>Not exposed by this app</td>
+</tr>
+<tr>
+<td>Uncertainty</td>
+<td>Model-dependent intervals</td>
+<td>Posterior/simulation-based intervals</td>
+<td>Predictive distribution</td>
+<td>Mean and quantiles</td>
+</tr>
+<tr>
+<td>New-domain use</td>
+<td>Refit</td>
+<td>Refit</td>
+<td>Usually retrain or adapt</td>
+<td>Direct zero-shot inference</td>
+</tr>
+<tr>
+<td>Interpretability</td>
+<td>Coefficients and diagnostics</td>
+<td>Trend/seasonality components</td>
+<td>Neural latent state</td>
+<td>Neural forecast path and quantiles</td>
+</tr>
+</tbody>
+</table>
+<p>Authoritative starting points are the <a href="https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html">statsmodels ARIMA API</a>, <a href="https://facebook.github.io/prophet/docs/quick_start.html">Prophet documentation</a>, and the <a href="https://arxiv.org/abs/1704.04110">DeepAR paper</a>.</p>
+<h3 id="41-when-each-model-is-attractive">4.1 When each model is attractive</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Strong first baseline</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Short, stable series with understood dynamics</td>
+<td>ARIMA/ETS</td>
+<td>Compact assumptions and diagnostics</td>
+</tr>
+<tr>
+<td>Business series with calendar effects and known holidays</td>
+<td>Prophet</td>
+<td>Explicit trend, seasonal, and holiday components</td>
+</tr>
+<tr>
+<td>Thousands of related product or sensor series with covariates</td>
+<td>DeepAR</td>
+<td>Joint training shares information across a panel</td>
+</tr>
+<tr>
+<td>Many unrelated series or rapid exploration without training</td>
+<td>TimesFM</td>
+<td>Reusable zero-shot checkpoint</td>
+</tr>
+</tbody>
+</table>
+<p>No row declares a universal winner. A production decision should compare naive seasonal forecasts, statistical baselines, and TimesFM on the same rolling-origin evaluation.</p>
+<h2 id="5-what-varying-frequency-means-in-timesfm-25">5. What varying frequency means in TimesFM 2.5</h2>
+<p>TimesFM was designed to generalize across temporal granularities, but <strong>TimesFM 2.5 removed the frequency indicator</strong> from the model API, as documented in the <a href="https://github.com/google-research/timesfm#timesfm-25">official release notes</a>. In this application the selected frequency has two jobs:</p>
+<ol>
+<li>Validate that the datetime index is exactly regular.</li>
+<li>Generate future timestamps after the last observation.</li>
+</ol>
+<p>It is not passed as an hourly/daily/monthly feature. The model sees the ordered numeric values; their patterns must communicate periodic structure.</p>
+<pre class="mermaid">flowchart TD
+    A[Date column] --> B{Regular at selected frequency?}
+    B -- No --> C[Reject and repair data]
+    B -- Yes --> D[Create future DatetimeIndex]
+    E[Target values] --> F[TimesFM inference]
+    D --> G[Attach timestamps to outputs]
+    F --> G
+</pre>
+<h2 id="6-capability-boundary-of-this-repository">6. Capability boundary of this repository</h2>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Current behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Checkpoint</td>
+<td><code>google/timesfm-2.5-200m-pytorch</code> at a pinned commit</td>
+</tr>
+<tr>
+<td>Context</td>
+<td>2–16,256 selected observations, subject to rounded combined limit</td>
+</tr>
+<tr>
+<td>Horizon</td>
+<td>1–1,024 observations</td>
+</tr>
+<tr>
+<td>Inputs</td>
+<td>One 1-D float array per series</td>
+</tr>
+<tr>
+<td>Batching</td>
+<td>Compatible series share horizon and non-negative setting</td>
+</tr>
+<tr>
+<td>Outputs</td>
+<td>q50 point forecast plus mean and q10–q90 table</td>
+</tr>
+<tr>
+<td>Hardware</td>
+<td>Auto, CPU, or CUDA</td>
+</tr>
+<tr>
+<td>Training</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Covariates</td>
+<td>Not supported by the app</td>
+</tr>
+<tr>
+<td>Evaluation</td>
+<td>User-managed; no built-in backtester</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Operational forecast is not business truth.</strong> Distribution shift, structural breaks, promotions, outages, and policy changes may be absent from the numeric history. Pair model output with domain review.</p>
+</blockquote>
+<h2 id="7-knowledge-checkpoint">7. Knowledge checkpoint</h2>
+<p>You are ready for installation if you can answer these questions:</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Expected answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Does the app train TimesFM on an uploaded file?</td>
+<td>No; it performs zero-shot inference.</td>
+</tr>
+<tr>
+<td>Does selecting “daily” send a daily token to TimesFM 2.5?</td>
+<td>No; it validates and extends timestamps.</td>
+</tr>
+<tr>
+<td>What is the displayed point forecast?</td>
+<td>q50, the median quantile channel.</td>
+</tr>
+<tr>
+<td>Why can TimesFM accept a previously unseen domain?</td>
+<td>Shared parameters were pretrained across broad time-series data.</td>
+</tr>
+<tr>
+<td>What must still happen before production use?</td>
+<td>Held-out evaluation against relevant baselines.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="references">References</h2>
+<ul>
+<li>Google Research, <a href="https://github.com/google-research/timesfm">TimesFM repository and TimesFM 2.5 usage</a>.</li>
+<li>Das et al., <a href="https://arxiv.org/abs/2310.10688"><em>A Decoder-only Foundation Model for Time-series Forecasting</em></a>.</li>
+<li>Google Research, <a href="https://research.google/blog/a-decoder-only-foundation-model-for-time-series-forecasting/"><em>A decoder-only foundation model for time-series forecasting</em></a>.</li>
+<li>Salinas et al., <a href="https://arxiv.org/abs/1704.04110"><em>DeepAR: Probabilistic Forecasting with Autoregressive Recurrent Networks</em></a>.</li>
+<li>statsmodels, <a href="https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html">ARIMA reference</a>.</li>
+<li>Meta Open Source, <a href="https://facebook.github.io/prophet/docs/quick_start.html">Prophet documentation</a>.</li>
+</ul>
+<p><a href="02_local_installation.md">Next: Local installation →</a></p>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>

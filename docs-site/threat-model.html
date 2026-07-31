@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Threat model · TimesFM Forecast Studio docs</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav id="sidebar" hx-boost="true" hx-target="#content" hx-select="#content" hx-swap="innerHTML" hx-push-url="true">
+<div class="brand">TimesFM Forecast Studio<span>docs</span></div>
+<div class="nav-group"><h2>Get started</h2><ul>
+<li><a href="readme.html">Overview</a></li>
+<li><a href="user-guide.html">Complete user guide</a></li>
+</ul></div>
+<div class="nav-group"><h2>Zero-to-master tutorial</h2><ul>
+<li><a href="tutorial-01.html">Tutorial 1 · Foundations</a></li>
+<li><a href="tutorial-02.html">Tutorial 2 · Local installation</a></li>
+<li><a href="tutorial-03.html">Tutorial 3 · Data engineering</a></li>
+<li><a href="tutorial-04.html">Tutorial 4 · Forecasting mastery</a></li>
+</ul></div>
+<div class="nav-group"><h2>Reference</h2><ul>
+<li><a href="manual-datasets.html">Manual datasets</a></li>
+<li><a href="threat-model.html" class="active">Threat model</a></li>
+<li><a href="changelog.html">Changelog</a></li>
+</ul></div>
+<div class="nav-group"><h2>Community</h2><ul>
+<li><a href="contributing.html">Contributing</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="code-of-conduct.html">Code of conduct</a></li>
+</ul></div>
+</nav>
+<main>
+<div id="content">
+<h1 id="threat-model-timesfm-forecasting-studio">Threat Model: timesfm-forecasting-studio</h1>
+<h2 id="executive-summary">Executive summary</h2>
+<p>This is a single-user, local-desktop Streamlit application for zero-shot time-series forecasting with Google TimesFM 2.5, confirmed by the user to run only on the operator's own machine against public/synthetic data — not a hosted multi-tenant service. Given that context, overall risk is <strong>low</strong>. The one finding worth active attention is a <strong>DNS-rebinding TOCTOU gap</strong> in the public-URL SSRF guard (<code>src/timesfm_app/ingestion/resolvers.py</code>): the guard resolves and validates the hostname once, then <code>httpx</code> independently re-resolves DNS at connect time, so an attacker who controls DNS for a domain they get the operator to paste as a "dataset URL" could rebind to a private/internal address after validation passes. Remaining findings (CSV formula-injection in exported reports, latent zip-slip pattern, unpinned model revision override) are low-priority and mostly conditional on future code changes or deliberate operator misconfiguration rather than a currently reachable attacker path.</p>
+<h2 id="scope-and-assumptions">Scope and assumptions</h2>
+<p><strong>In-scope paths:</strong> <code>src/timesfm_app/**</code>, <code>src/integrations.py</code>, <code>src/loader.py</code>, <code>src/predictor.py</code>.
+<strong>Out-of-scope:</strong> CI/build tooling (<code>.github/**</code>), tests, docs, <code>graphify-out/</code> (generated artifacts, not application logic), the upstream <code>timesfm</code>/<code>torch</code>/<code>huggingface_hub</code>/<code>kagglehub</code> library internals (third-party dependency code, not this repo).</p>
+<p><strong>Assumptions (confirmed with user):</strong>
+- Deployment model: local desktop only — each operator runs <code>streamlit run</code> on their own machine. No network exposure beyond localhost.
+- The public-URL dataset ingestion feature is reachable only by the trusted local operator, not by an untrusted remote party directly.
+- Data handled is public/synthetic time-series data only — no PII or regulated/internal data confirmed in scope.
+- No authentication/session boundary exists anywhere in the app (Streamlit has none built-in) — by design, since it's single-user.
+- <code>model_id</code>/<code>model_revision</code> are operator-set config values (env/<code>st.secrets</code>), pinned by default to a specific commit SHA (<code>config.py:12</code>), not attacker-controlled at runtime.</p>
+<p><strong>Open questions that would raise priority if answered differently:</strong>
+- If this app is ever deployed as a shared/hosted instance (Streamlit Cloud, internal server), every finding here should be re-scored upward — in particular the no-auth model becomes a direct multi-tenant data/credential exposure risk, and the SSRF gap becomes remotely triggerable by any user of the shared instance.
+- Whether exported reports (CSV/XLSX/PDF) are ever shared with or opened by a second party (colleague, client) — this changes TM-002's blast radius from "operator's own machine" to "downstream reader's machine."</p>
+<h2 id="system-model">System model</h2>
+<h3 id="primary-components">Primary components</h3>
+<ul>
+<li><strong>Streamlit UI</strong> (<code>src/timesfm_app/ui/*</code>) — <code>render_app</code> entrypoint; pages for loading, dataset forecasting, quick/manual forecasting, workbench (analysis/evaluation/export).</li>
+<li><strong>Ingestion layer</strong> (<code>src/timesfm_app/ingestion/resolvers.py</code>, <code>providers.py</code>, <code>readers.py</code>) — upload caching, public-URL download with SSRF guard, Kaggle/HF file resolution.</li>
+<li><strong>Integrations facade</strong> (<code>src/integrations.py</code>) — <code>KaggleDatasetClient</code>, <code>HuggingFaceDatasetClient</code> search/download, credential-aware.</li>
+<li><strong>Config</strong> (<code>src/timesfm_app/config.py</code>) — <code>AppSettings.from_environment</code>, loads <code>HF_TOKEN</code>/<code>KAGGLE_*</code> from env or <code>st.secrets</code>.</li>
+<li><strong>Domain/forecast core</strong> (<code>contracts.py</code>, <code>analysis.py</code>, <code>evaluation.py</code>, <code>manual_datasets.py</code>, <code>forecasting/preprocessing.py</code>, <code>forecasting/runtime.py</code>) — series prep, TimesFM model invocation via <code>TimesFMRuntime</code>.</li>
+<li><strong>Reports</strong> (<code>reports.py</code>) — CSV/HTML/PDF export of results.</li>
+<li><strong>Local cache/model store</strong> — <code>AppSettings.cache_root</code> (<code>.cache/data</code>, <code>.cache/huggingface</code>).</li>
+</ul>
+<h3 id="data-flows-and-trust-boundaries">Data flows and trust boundaries</h3>
+<ul>
+<li>Operator Browser → Streamlit App (same machine, localhost) — UI actions, no network boundary crossed.</li>
+<li>Streamlit App → Arbitrary Public URL (<code>download_public_url</code>, <code>resolvers.py:76</code>) — HTTP/HTTPS, no auth; validated against private/loopback/link-local/reserved IP ranges per-hostname-resolution (<code>validate_public_url</code>, <code>resolvers.py:43</code>), re-checked on every redirect hop (up to 4), 200MB size cap enforced during streaming.</li>
+<li>Streamlit App → Kaggle API (<code>KaggleDatasetClient</code>) — HTTPS, authenticated via <code>KAGGLE_API_TOKEN</code>/<code>KAGGLE_USERNAME</code>+<code>KAGGLE_KEY</code> env vars set by the operator.</li>
+<li>Streamlit App → Hugging Face Hub (<code>HuggingFaceDatasetClient</code>, <code>resolve_huggingface_file</code>, model <code>from_pretrained</code>) — HTTPS, optional <code>HF_TOKEN</code>; model revision pinned by default.</li>
+<li>Streamlit App → Local filesystem cache — uploaded files, downloaded datasets, model checkpoints; filenames/suffixes validated (<code>_validate_filename</code>, <code>_validate_signature</code>) before caching.</li>
+</ul>
+<h4 id="diagram">Diagram</h4>
+<pre class="mermaid">flowchart TD
+  subgraph Local["Local machine trust zone"]
+    User["Operator browser"]
+    App["Streamlit app process"]
+    Cache["Local cache and model files"]
+  end
+  subgraph External["External services trust zone"]
+    URL["Arbitrary public URL"]
+    Kaggle["Kaggle API"]
+    HF["Hugging Face Hub"]
+  end
+  User -->|UI actions| App
+  App -->|fetch dataset| URL
+  App -->|search and download| Kaggle
+  App -->|search download and checkpoint| HF
+  App -->|read and write| Cache
+  URL -->|response bytes| App
+  Kaggle -->|dataset files| App
+  HF -->|dataset files and model weights| App
+</pre>
+<h2 id="assets-and-security-objectives">Assets and security objectives</h2>
+<table>
+<thead>
+<tr>
+<th>Asset</th>
+<th>Why it matters</th>
+<th>Security objective (C/I/A)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HF_TOKEN</code> / <code>KAGGLE_API_TOKEN</code> / <code>KAGGLE_USERNAME</code> / <code>KAGGLE_KEY</code> (env, <code>st.secrets</code>)</td>
+<td>Grant access to the operator's HF/Kaggle account; leakage enables account abuse</td>
+<td>C</td>
+</tr>
+<tr>
+<td>Local dataset cache (<code>.cache/data/{uploads,urls}</code>)</td>
+<td>Holds third-party and operator-supplied data being worked on</td>
+<td>C</td>
+</tr>
+<tr>
+<td>TimesFM model checkpoint (<code>.cache/huggingface</code>)</td>
+<td>Forecast correctness depends on unmodified, trusted weights</td>
+<td>I</td>
+</tr>
+<tr>
+<td>Exported reports (CSV/HTML/PDF via <code>reports.py</code>)</td>
+<td>May be shared onward; must not carry unintended payloads (formula/script injection)</td>
+<td>I</td>
+</tr>
+<tr>
+<td>Operator's local/LAN network reachability</td>
+<td>Potential SSRF pivot point if the URL guard is bypassed</td>
+<td>C, I</td>
+</tr>
+</tbody>
+</table>
+<h2 id="attacker-model">Attacker model</h2>
+<h3 id="capabilities">Capabilities</h3>
+<ul>
+<li>Can send the operator a link to a dataset hosted on attacker-controlled infrastructure/DNS, hoping the operator pastes it into the "Public URL" loader.</li>
+<li>Can control DNS resolution (including low-TTL records) for a domain they own, enabling rebinding after the app's initial validation.</li>
+<li>Can publish a malicious dataset file (CSV/XLSX/zip) to Kaggle or Hugging Face that the operator might search for and download.</li>
+</ul>
+<h3 id="non-capabilities">Non-capabilities</h3>
+<ul>
+<li>Cannot reach the Streamlit process directly over a network — no listener beyond localhost in the confirmed deployment model.</li>
+<li>Cannot control <code>model_id</code>/<code>model_revision</code> at runtime — these are operator-set config, pinned to a specific commit SHA by default.</li>
+<li>Cannot exploit a multi-tenant/auth boundary — none exists, and none is expected to, given single-user-by-design.</li>
+<li>Cannot directly trigger any code path without the operator taking an action (pasting a URL, searching/selecting a dataset, overriding an env var).</li>
+</ul>
+<h2 id="entry-points-and-attack-surfaces">Entry points and attack surfaces</h2>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>How reached</th>
+<th>Trust boundary</th>
+<th>Notes</th>
+<th>Evidence (repo path / symbol)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>File upload</td>
+<td>Operator selects local file</td>
+<td>Local → App</td>
+<td>Suffix + magic-byte validated, size-capped, hashed into content-addressed cache</td>
+<td><code>resolvers.py:24</code> <code>cache_uploaded_file</code>, <code>_validate_filename</code>/<code>_validate_signature</code></td>
+</tr>
+<tr>
+<td>Public URL download</td>
+<td>Operator pastes URL</td>
+<td>App → Internet</td>
+<td>SSRF guard blocks private/loopback/link-local/reserved IPs per resolved hostname; revalidated per redirect hop; DNS resolved independently again at connect time (TOCTOU)</td>
+<td><code>resolvers.py:43</code> <code>validate_public_url</code>, <code>resolvers.py:76</code> <code>download_public_url</code></td>
+</tr>
+<tr>
+<td>Kaggle search/download</td>
+<td>Operator searches, selects result, downloads</td>
+<td>App → Kaggle API</td>
+<td>Credentials from env; <code>handle</code> for download comes from Kaggle's own search result, not raw free text</td>
+<td><code>integrations.py:32</code> <code>KaggleDatasetClient</code>, <code>providers.py:18</code> <code>resolve_kaggle_dataset</code></td>
+</tr>
+<tr>
+<td>Hugging Face search/download</td>
+<td>Operator searches, selects files, downloads</td>
+<td>App → HF Hub</td>
+<td>Suffix-filtered; token from env; revision resolved via HF API unless offline</td>
+<td><code>integrations.py:92</code> <code>HuggingFaceDatasetClient</code>, <code>providers.py:61</code> <code>resolve_huggingface_file</code></td>
+</tr>
+<tr>
+<td>Model checkpoint load</td>
+<td>App startup (cached resource)</td>
+<td>App → HF Hub</td>
+<td><code>model_revision</code> pinned by default in config; operator can override via env</td>
+<td><code>config.py:12</code>, <code>runtime.py:174</code> <code>_get_model</code></td>
+</tr>
+<tr>
+<td>Zip-bundled manual dataset read</td>
+<td>Operator downloads bundled dataset</td>
+<td>App (in-memory)</td>
+<td>Reads a named member into pandas directly from bytes — no on-disk extraction, so no zip-slip write path today</td>
+<td><code>manual_datasets.py:173</code> <code>_read_zip_csv</code></td>
+</tr>
+<tr>
+<td>Config/secrets load</td>
+<td>App startup</td>
+<td>Env/<code>st.secrets</code> → App</td>
+<td>Values marked <code>repr=False</code> on the frozen dataclass so they don't appear in reprs/logs by default</td>
+<td><code>config.py:8</code> <code>AppSettings</code>, <code>config.py:30</code> <code>from_environment</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="top-abuse-paths">Top abuse paths</h2>
+<ol>
+<li><strong>DNS-rebinding SSRF via shared link</strong> — Attacker registers a domain with a low-TTL DNS record resolving to a public IP → sends the operator a link ("here's a public dataset") → operator pastes it into the Public URL loader → <code>validate_public_url</code> resolves and approves the (currently public) IP → attacker flips the DNS record to a private/loopback address → <code>httpx.Client.stream</code> performs its own fresh DNS lookup at connect time and connects to the now-private address → app fetches and displays/stores content from an internal-only endpoint reachable from the operator's machine (impact: recon of local/LAN services; no data leaves the machine to the attacker directly).</li>
+<li><strong>CSV/Excel formula injection via third-party dataset</strong> — Operator downloads a public Kaggle/HF dataset containing spreadsheet-formula payloads in cell values → data flows through <code>manual_datasets</code>/analysis into an exported report → operator or a downstream colleague opens the exported CSV/XLSX in Excel → embedded formula executes with the opener's local privileges, if the export path doesn't neutralize leading <code>=</code>/<code>+</code>/<code>-</code>/<code>@</code> characters (not confirmed either way from evidence gathered — flagged for direct review of <code>reports.py</code>).</li>
+<li><strong>Redirect-chain SSRF (currently mitigated)</strong> — Attacker-controlled URL 302-redirects through multiple hosts toward a private address → closed today because <code>validate_public_url</code> re-runs on every redirect hop inside the loop (<code>resolvers.py:90</code>); a regression risk only if that per-hop revalidation is refactored away.</li>
+<li><strong>Latent zip-slip pattern</strong> — <code>_read_zip_csv</code> opens an archive member by name; no path-traversal risk exists today because the read stays in-memory (<code>ZipFile.open</code> → <code>pd.read_csv</code>), but the same filename-trust pattern would become a real zip-slip if a future change added on-disk extraction using the raw member name.</li>
+<li><strong>Untrusted model revision override</strong> — Operator (or a script run on the operator's behalf) sets <code>model_id</code>/<code>model_revision</code> env vars to point at an untrusted HF repo/revision, bypassing the safe pinned default → app loads and deserializes that checkpoint via <code>timesfm</code>/<code>torch</code> → any deserialization weakness in the upstream loading path (outside this repo) would execute in that context.</li>
+</ol>
+<h2 id="threat-model-table">Threat model table</h2>
+<table>
+<thead>
+<tr>
+<th>Threat ID</th>
+<th>Threat source</th>
+<th>Prerequisites</th>
+<th>Threat action</th>
+<th>Impact</th>
+<th>Impacted assets</th>
+<th>Existing controls (evidence)</th>
+<th>Gaps</th>
+<th>Recommended mitigations</th>
+<th>Detection ideas</th>
+<th>Likelihood</th>
+<th>Impact severity</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TM-001</td>
+<td>Attacker who controls DNS for a domain shared with the operator</td>
+<td>Operator pastes an attacker-influenced URL into the Public URL loader</td>
+<td>Rebind DNS between <code>validate_public_url</code>'s resolution and <code>httpx</code>'s independent connect-time resolution</td>
+<td>App fetches/returns content from a private/internal address reachable from operator's machine</td>
+<td>Operator's LAN reachability, local cache content</td>
+<td>Private/loopback/link-local/reserved blocklist checked per hostname, re-checked on every redirect hop (<code>resolvers.py:43-73,90</code>)</td>
+<td>Validation and connection each perform independent DNS lookups — no IP pinning between them</td>
+<td>Resolve once and connect directly to the validated IP (custom transport/dest override, preserving Host header for SNI/vhost), or re-validate immediately at socket-connect time</td>
+<td>Log when the IP used for connection differs from the IP validated moments earlier</td>
+<td>Low</td>
+<td>Medium</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>TM-002</td>
+<td>Malicious third-party dataset publisher (Kaggle/HF/web)</td>
+<td>Operator downloads and later exports/re-shares a dataset containing spreadsheet-formula payloads</td>
+<td>Formula-laden cell values pass through the report pipeline unmodified into CSV/XLSX/PDF export</td>
+<td>Formula executes in Excel with the opener's privileges if exported file is reopened</td>
+<td>Exported report files, downstream reader's machine</td>
+<td>Not confirmed either way from evidence gathered this session</td>
+<td>Unconfirmed whether <code>reports.py</code> neutralizes leading <code>=</code>/<code>+</code>/<code>-</code>/<code>@</code> in exported cells</td>
+<td>Prefix risky leading characters (or use a formula-injection-safe CSV/XLSX writer) in <code>reports.py</code> export paths</td>
+<td>none currently</td>
+<td>Low</td>
+<td>Low</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>TM-003</td>
+<td>Malicious archive publisher</td>
+<td>Operator downloads a zip-bundled manual dataset with a crafted member name</td>
+<td><code>_read_zip_csv</code> opens the member by name</td>
+<td>None today — read stays in-memory, no extraction-to-disk path exists</td>
+<td>n/a today; would become local filesystem if code changes</td>
+<td>Read-only <code>ZipFile.open</code> → <code>pd.read_csv</code>, no <code>extractall</code>/write use (<code>manual_datasets.py:173-179</code>)</td>
+<td>No forward-looking guard preventing a future write-path from reusing the raw member name</td>
+<td>If on-disk extraction is ever added, constrain to <code>Path(name).name</code> plus a resolved-path containment check</td>
+<td>n/a</td>
+<td>Low</td>
+<td>Low</td>
+<td>Low (latent, no live path)</td>
+</tr>
+<tr>
+<td>TM-004</td>
+<td>Operator misconfiguration (self-inflicted, not directly attacker-reachable)</td>
+<td>Operator overrides <code>model_id</code>/<code>model_revision</code> env vars away from the pinned default</td>
+<td>App loads a torch checkpoint from an untrusted HF repo/revision</td>
+<td>Deserialization risk depends on upstream <code>timesfm</code>/<code>torch</code>/<code>huggingface_hub</code> loading internals (out of this repo's scope)</td>
+<td>Operator's machine</td>
+<td>Default <code>model_revision</code> pinned to a specific commit SHA (<code>config.py:12</code>); <code>offline</code>/<code>local_files_only</code> mode available</td>
+<td>No verification that an operator-overridden <code>model_id</code>/<code>model_revision</code> still points to a trusted publisher</td>
+<td>Document that <code>TIMESFM_APP_MODEL_ID</code>/<code>_REVISION</code> overrides must only point to reviewed/trusted checkpoints</td>
+<td>n/a</td>
+<td>Low</td>
+<td>High</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<h2 id="criticality-calibration">Criticality calibration</h2>
+<p>For this repo, given the confirmed local-desktop, single-operator, public-data deployment:</p>
+<ul>
+<li><strong>Critical</strong> (none currently found): would require a remotely reachable, unauthenticated RCE or auth bypass. Example: if this app were ever hosted as a shared multi-tenant service with the current no-auth model, that absence of auth would itself become critical.</li>
+<li><strong>High</strong> (none currently found): a live, directly attacker-triggerable path with no operator action required — e.g., the SSRF guard being bypassable on the <em>first</em> request (not just via a timing race), or a confirmed on-disk zip-slip write path.</li>
+<li><strong>Medium</strong>: TM-001 — a real gap in existing hardening that requires the operator to take one action (paste a URL) and the attacker to win a timing race; consistent with "targeted, conditional impact" rather than "trivially, remotely exploitable."</li>
+<li><strong>Low</strong>: TM-002 through TM-004 — either unconfirmed/latent (no live exploitation path today) or require a deliberate operator misconfiguration rather than any attacker-reachable trigger.</li>
+</ul>
+<h2 id="focus-paths-for-security-review">Focus paths for security review</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Why it matters</th>
+<th>Related Threat IDs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/timesfm_app/ingestion/resolvers.py</code></td>
+<td>SSRF guard implementation; DNS-rebinding TOCTOU gap between validation and connection</td>
+<td>TM-001</td>
+</tr>
+<tr>
+<td><code>src/timesfm_app/reports.py</code></td>
+<td>CSV/HTML/PDF export — confirm formula-injection neutralization before this is closed out</td>
+<td>TM-002</td>
+</tr>
+<tr>
+<td><code>src/timesfm_app/manual_datasets.py</code></td>
+<td>Zip member handling — keep read-only; block any future extraction path from trusting raw member names</td>
+<td>TM-003</td>
+</tr>
+<tr>
+<td><code>src/timesfm_app/config.py</code></td>
+<td><code>model_id</code>/<code>model_revision</code> override handling — document trust expectations for operator overrides</td>
+<td>TM-004</td>
+</tr>
+<tr>
+<td><code>src/integrations.py</code></td>
+<td>Credential handling paths to Kaggle/HF APIs — defense-in-depth check that tokens never surface in exception strings shown via <code>st.error</code></td>
+<td>(general hygiene, not a standalone TM)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quality-check">Quality check</h2>
+<ul>
+<li>All discovered entry points (upload, public URL, Kaggle, HF, model load, zip read, config/secrets) are represented in the entry-points table. ✅</li>
+<li>Each trust boundary (Local→App, App→Internet×3, App→Cache) appears in at least one threat/abuse path. ✅</li>
+<li>Runtime (<code>src/timesfm_app/**</code>, <code>src/integrations.py</code>, <code>src/loader.py</code>, <code>src/predictor.py</code>) is separated from CI/build/tests/docs, which are explicitly out of scope. ✅</li>
+<li>User clarifications captured: local-desktop-only deployment, URL loader not attacker-reachable directly, public/synthetic data only — all three answers are reflected in scope, assumptions, attacker model, and priority scoring throughout. ✅</li>
+<li>Assumptions and open questions are stated explicitly in "Scope and assumptions." ✅</li>
+</ul>
+</div>
+</main>
+</div>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+document.body.addEventListener("htmx:afterSwap", function () {
+    mermaid.run({ querySelector: "#content .mermaid" });
+});
+</script>
+</body>
+</html>
