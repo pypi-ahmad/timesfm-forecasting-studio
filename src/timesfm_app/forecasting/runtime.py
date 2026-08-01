@@ -122,7 +122,7 @@ class TimesFMRuntime:
         with self._lock:
             model = self._get_model()
             # XReg needs backcasts, so it recompiles after a standard forecast.
-            config = self._make_xreg_config(request)
+            config = self._make_config(request, return_backcast=True)
             model.compile(config)
             self._compile_key = None
             point, distribution = model.forecast_with_covariates(
@@ -218,7 +218,13 @@ class TimesFMRuntime:
         inner.device = torch.device(device)
         inner.device_count = torch.cuda.device_count() if device == "cuda" else 1
 
-    def _make_config(self, request: ForecastRequest, *, max_context: int | None = None) -> Any:
+    def _make_config(
+        self,
+        request: ForecastRequest | CovariateForecastRequest,
+        *,
+        max_context: int | None = None,
+        return_backcast: bool = False,
+    ) -> Any:
         factory = self._config_factory
         if factory is None:
             import timesfm
@@ -233,24 +239,7 @@ class TimesFMRuntime:
             force_flip_invariance=True,
             infer_is_positive=request.non_negative,
             fix_quantile_crossing=True,
-        )
-
-    def _make_xreg_config(self, request: CovariateForecastRequest) -> Any:
-        factory = self._config_factory
-        if factory is None:
-            import timesfm
-
-            factory = timesfm.ForecastConfig
-        return factory(
-            max_context=request.compile_context,
-            max_horizon=request.compile_horizon,
-            normalize_inputs=True,
-            per_core_batch_size=1,
-            use_continuous_quantile_head=True,
-            force_flip_invariance=True,
-            infer_is_positive=request.non_negative,
-            fix_quantile_crossing=True,
-            return_backcast=True,
+            return_backcast=return_backcast,
         )
 
 

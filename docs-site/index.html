@@ -39,7 +39,7 @@
 <p>A local-first Streamlit application for <strong>zero-shot, univariate forecasting</strong> with Google TimesFM 2.5 (200M, PyTorch). Load CSV, Parquet, or XLSX data from your computer, public URLs, Kaggle, or Hugging Face; then generate point and quantile forecasts without training a model.</p>
 <blockquote>
 <p>⚠️ Forecasts are analytical estimates, not guarantees. Evaluate TimesFM against held-out data and domain baselines before using outputs for operational, financial, safety, or policy decisions.</p>
-<p><strong>New here?</strong> Read the <a href="docs/user-guide.md">complete user guide</a> — clone/setup/run instructions, why and how to use every feature, and the core theory in plain language, all in one document.</p>
+<p><strong>New here?</strong> Read the <a href="user-guide.html">complete user guide</a> — clone/setup/run instructions, why and how to use every feature, and the core theory in plain language, all in one document.</p>
 </blockquote>
 <h2 id="features">Features</h2>
 <table>
@@ -110,7 +110,7 @@ uv run streamlit run app.py
 python -m pip install -r requirements.txt
 streamlit run app.py
 </code></pre>
-<p>The lockfile selects the PyTorch CUDA 13.0 index. CPU remains selectable in the UI; consult the <a href="docs/tutorial/02_local_installation.md">installation tutorial</a> before changing the locked PyTorch source.</p>
+<p>The lockfile selects the PyTorch CUDA 13.0 index. CPU remains selectable in the UI; consult the <a href="tutorial-02.html">installation tutorial</a> before changing the locked PyTorch source.</p>
 <h2 id="runtime-contract">Runtime contract</h2>
 <table>
 <thead>
@@ -154,6 +154,9 @@ streamlit run app.py
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>⚠️ <strong>Only override <code>model_id</code>/<code>model_revision</code> with checkpoints you trust.</strong> The defaults above are pinned to a specific, reviewed Hugging Face commit. Pointing them at an untrusted repository or revision means the app will download and run someone else's model weights.</p>
+</blockquote>
 <p>TimesFM 2.5 does not receive a frequency indicator. The selected hourly/daily/weekly/monthly frequency validates the historical grid and labels future points; seasonal behavior must be present in the numeric context. See the <a href="https://github.com/google-research/timesfm">official TimesFM repository</a>.</p>
 <h2 id="credentials-and-cache">Credentials and cache</h2>
 <p>Prefer environment variables or local Streamlit secrets. Values are never intentionally displayed or logged.</p>
@@ -240,19 +243,19 @@ XReg component runs on CPU for Windows compatibility.</p>
 </thead>
 <tbody>
 <tr>
-<td><a href="docs/tutorial/01_timesfm_intro.md">1. TimesFM foundations</a></td>
+<td><a href="tutorial-01.html">1. TimesFM foundations</a></td>
 <td>Understand TSFMs, zero-shot mathematics, patching, quantiles, and model comparisons</td>
 </tr>
 <tr>
-<td><a href="docs/tutorial/02_local_installation.md">2. Local installation</a></td>
+<td><a href="tutorial-02.html">2. Local installation</a></td>
 <td>Install with uv/venv/Conda, verify CUDA/CPU, authenticate, and manage cache</td>
 </tr>
 <tr>
-<td><a href="docs/tutorial/03_data_engineering.md">3. Data engineering</a></td>
+<td><a href="tutorial-03.html">3. Data engineering</a></td>
 <td>Build regular series from local, URL, Kaggle, and Hugging Face data</td>
 </tr>
 <tr>
-<td><a href="docs/tutorial/04_forecasting_mastery.md">4. Forecasting mastery</a></td>
+<td><a href="tutorial-04.html">4. Forecasting mastery</a></td>
 <td>Choose context/horizon, interpret charts, manage OOM, and design evaluation</td>
 </tr>
 </tbody>
@@ -278,7 +281,7 @@ tests/
   integration/                  model-free Streamlit smoke tests
 </code></pre>
 <p>The public URL resolver allows only HTTP/S, revalidates redirects, blocks private and special-purpose IP ranges, limits downloads to 200 MiB, checks supported extensions and binary signatures, and strips queries from retained metadata. Remote files remain untrusted: compressed formats can expand significantly in local memory.</p>
-<p>For a full repo-grounded attacker-model writeup (trust boundaries, abuse paths, threat table), see <a href="timesfm-forecasting-studio-threat-model.md"><code>timesfm-forecasting-studio-threat-model.md</code></a>.</p>
+<p>For a full repo-grounded attacker-model writeup (trust boundaries, abuse paths, threat table), see <a href="threat-model.html"><code>timesfm-forecasting-studio-threat-model.md</code></a>.</p>
 <h2 id="commands">Commands</h2>
 <table>
 <thead>
@@ -346,8 +349,8 @@ tests/
 </tbody>
 </table>
 <h2 id="contributing-and-support">Contributing and support</h2>
-<p>Read <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> before proposing changes. Use the structured GitHub issue forms for reproducible bugs, focused features, and documentation problems. General usage guidance is in <a href="SUPPORT.md">SUPPORT.md</a>. Report vulnerabilities privately according to <a href="SECURITY.md">SECURITY.md</a>, never through a public issue.</p>
-<p>All contributors must follow the <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>.</p>
+<p>Read <a href="contributing.html">CONTRIBUTING.md</a> before proposing changes. Use the structured GitHub issue forms for reproducible bugs, focused features, and documentation problems. General usage guidance is in <a href="support.html">SUPPORT.md</a>. Report vulnerabilities privately according to <a href="security.html">SECURITY.md</a>, never through a public issue.</p>
+<p>All contributors must follow the <a href="code-of-conduct.html">Code of Conduct</a>.</p>
 <h2 id="citation-and-upstream-work">Citation and upstream work</h2>
 <p>TimesFM is developed by Google Research. This repository is an independent Streamlit application and is not an official Google product.</p>
 <ul>

@@ -171,6 +171,9 @@ def write_dataset_files(output_dir: Path, datasets: dict[str, pd.DataFrame]) -> 
 
 
 def _read_zip_csv(payload: bytes, filename: str) -> pd.DataFrame:
+    # Reads a member into memory only (ZipFile.open -> pandas), never extracts
+    # to disk. If extraction is ever added, re-contain filename under the
+    # destination directory first -- archive member names are untrusted.
     with ZipFile(BytesIO(payload)) as archive:
         try:
             with archive.open(filename) as source:

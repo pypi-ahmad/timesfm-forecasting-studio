@@ -73,6 +73,21 @@ PAGES = [
 MERMAID_BLOCK = re.compile(
     r'<pre><code class="language-mermaid">(.*?)</code></pre>', re.DOTALL
 )
+LINK_HREF = re.compile(r'href="([^"]+)"')
+SOURCE_TO_SLUG = {page.source.resolve(): page.slug for page in PAGES}
+
+
+def _rewrite_link(href: str, source_dir: Path) -> str:
+    if href.startswith(("http://", "https://", "mailto:", "#")):
+        return href
+    path_part, _, fragment = href.partition("#")
+    if not path_part:
+        return href
+    target = (source_dir / path_part).resolve()
+    slug = SOURCE_TO_SLUG.get(target)
+    if slug is None:
+        return href
+    return f"{slug}.html#{fragment}" if fragment else f"{slug}.html"
 
 SHELL = """<!doctype html>
 <html lang="en">
@@ -132,6 +147,8 @@ def render_page(page: Page) -> str:
         return f'<pre class="mermaid">{html.unescape(match.group(1))}</pre>'
 
     body = MERMAID_BLOCK.sub(unwrap_mermaid, body)
+    source_dir = page.source.parent
+    body = LINK_HREF.sub(lambda m: f'href="{_rewrite_link(m.group(1), source_dir)}"', body)
     return SHELL.format(title=page.title, nav=build_nav(page.slug), body=body)
 
 

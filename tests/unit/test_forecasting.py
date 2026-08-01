@@ -25,6 +25,7 @@ class FakeConfig:
     force_flip_invariance: bool
     infer_is_positive: bool
     fix_quantile_crossing: bool
+    return_backcast: bool = False
 
 
 class FakeModel:
