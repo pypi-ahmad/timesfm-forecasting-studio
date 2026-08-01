@@ -58,6 +58,8 @@ The lockfile selects the PyTorch CUDA 13.0 index. CPU remains selectable in the 
 | Output | q50 point forecast plus mean and q10–q90 distribution |
 | Frequency | Timestamp validation and future-index generation only |
 
+> ⚠️ **Only override `model_id`/`model_revision` with checkpoints you trust.** The defaults above are pinned to a specific, reviewed Hugging Face commit. Pointing them at an untrusted repository or revision means the app will download and run someone else's model weights.
+
 TimesFM 2.5 does not receive a frequency indicator. The selected hourly/daily/weekly/monthly frequency validates the historical grid and labels future points; seasonal behavior must be present in the numeric context. See the [official TimesFM repository](https://github.com/google-research/timesfm).
 
 ## Credentials and cache

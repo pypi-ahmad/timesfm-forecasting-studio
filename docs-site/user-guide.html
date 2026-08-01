@@ -38,7 +38,7 @@
 <h1 id="timesfm-forecast-studio-the-complete-guide-zero-to-hero">TimesFM Forecast Studio — the complete guide (zero to hero)</h1>
 <p>One document, start to finish: what this app is, why it exists, how to get it running on your own machine, and how to use every single feature — written so it makes sense whether you've never touched a forecasting tool before or you're a developer who wants to know exactly what happens under the hood.</p>
 <blockquote>
-<p>This guide complements, but doesn't replace, the deeper <a href="tutorial/01_timesfm_intro.md">Zero-to-Master tutorial</a> (four chapters with full math) and the <a href="../README.md">README</a> (quick reference tables). Read this one first if you want the full story in one place.</p>
+<p>This guide complements, but doesn't replace, the deeper <a href="tutorial-01.html">Zero-to-Master tutorial</a> (four chapters with full math) and the <a href="readme.html">README</a> (quick reference tables). Read this one first if you want the full story in one place.</p>
 </blockquote>
 <h2 id="table-of-contents">Table of contents</h2>
 <ol>
@@ -118,7 +118,7 @@
 <p>Wider bands mean more uncertainty; narrower bands mean the model is more confident. Trusting the point line alone and ignoring the band is a common (and risky) mistake.</p>
 <h3 id="patching-why-there-are-size-limits">Patching (why there are size limits)</h3>
 <p>Feeding a model one number at a time for a year of hourly data would be enormously expensive to compute. TimesFM instead groups consecutive values into <strong>patches</strong> — chunks of 32 numbers on the input side, 128 on the output side — and reasons over patches rather than individual points. That's why the app rounds your chosen context/horizon up to the nearest patch boundary, and why there's a combined size ceiling (rounded context + horizon ≤ 16,384 points). You don't need to manage this yourself — the app does the rounding for you — but it explains why an odd context length like "500" silently becomes "512" internally.</p>
-<p>For the full mathematical treatment (patch equations, the pinball loss behind quantile forecasts, zero-shot transfer formalized, and a detailed model comparison against ARIMA/Prophet/DeepAR), read <a href="tutorial/01_timesfm_intro.md">tutorial chapter 1</a>.</p>
+<p>For the full mathematical treatment (patch equations, the pinball loss behind quantile forecasts, zero-shot transfer formalized, and a detailed model comparison against ARIMA/Prophet/DeepAR), read <a href="tutorial-01.html">tutorial chapter 1</a>.</p>
 <hr />
 <h2 id="3-clone-set-up-and-run-it">3. Clone, set up, and run it</h2>
 <h3 id="what-you-need-first">What you need first</h3>
@@ -142,7 +142,7 @@ uv sync --locked --group dev
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 </code></pre>
-<p>The lockfile pins the CUDA build of PyTorch by default. If you're on a CPU-only machine or hit installation issues, read <a href="tutorial/02_local_installation.md">tutorial chapter 2</a> before changing the pinned PyTorch source — it walks through uv/venv/Conda setup, GPU-vs-CPU selection, and credential setup in full.</p>
+<p>The lockfile pins the CUDA build of PyTorch by default. If you're on a CPU-only machine or hit installation issues, read <a href="tutorial-02.html">tutorial chapter 2</a> before changing the pinned PyTorch source — it walks through uv/venv/Conda setup, GPU-vs-CPU selection, and credential setup in full.</p>
 <h3 id="configure-credentials-optional-only-if-you-need-them">Configure credentials (optional, only if you need them)</h3>
 <p>Only needed if you plan to use the Kaggle or Hugging Face dataset-search features, or a gated/private Hugging Face model. Copy the example secrets file and fill in what you use:</p>
 <pre><code class="language-powershell">Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
@@ -481,7 +481,7 @@ uv run ruff format --check src tests app.py   # formatting check
 <p><strong>"URL resolves to a private or otherwise unsafe address"</strong> — The app deliberately refuses to fetch that address; see the security note in <a href="#a-security-relevant-detail-worth-knowing">section 5</a>. This isn't a bug — the URL you gave it points at a private/internal network address, which the app will never fetch.</p>
 <p><strong>Why is my forecast confidently wrong?</strong> — Zero-shot means no training on your specific series. Check the seasonal period and context length on the Analyze stage, run a rolling backtest before trusting the numbers, and compare against a naive baseline (MASE/RMSSE below 1 means TimesFM is beating "just repeat the last value").</p>
 <hr />
-<p><em>Questions this guide doesn't answer, or feedback on it? See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> and <a href="../SUPPORT.md">SUPPORT.md</a>.</em></p>
+<p><em>Questions this guide doesn't answer, or feedback on it? See <a href="contributing.html">CONTRIBUTING.md</a> and <a href="support.html">SUPPORT.md</a>.</em></p>
 </div>
 </main>
 </div>
