@@ -10,7 +10,7 @@ dependencies = [
   "huggingface-hub==1.24.0",
   "jax==0.11.0",
   "jaxlib==0.11.0",
-  "kaggle==2.2.3",
+  "kaggle==2.2.4",
   "kagglehub==1.0.2",
   "numpy==2.5.1",
   "openpyxl==3.1.5",
