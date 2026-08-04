@@ -21,9 +21,7 @@ from timesfm_app.manual_datasets import (
 
 
 def test_build_fred_series_uses_month_start_timestamps() -> None:
-    raw = pd.DataFrame(
-        {"observation_date": ["2025-01-01", "2025-02-01"], "UNRATE": [4.0, 4.1]}
-    )
+    raw = pd.DataFrame({"observation_date": ["2025-01-01", "2025-02-01"], "UNRATE": [4.0, 4.1]})
 
     actual = build_fred_series(raw)
 
