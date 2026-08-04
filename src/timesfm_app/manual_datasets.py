@@ -17,7 +17,9 @@ NOAA_CENTRAL_PARK_URL = (
     "&stations=USW00094728&startDate=2016-01-01&endDate=2025-12-31"
     "&format=csv&includeAttributes=false&units=metric"
 )
-UCI_APPLIANCES_URL = "https://archive.ics.uci.edu/static/public/374/appliances+energy+prediction.zip"
+UCI_APPLIANCES_URL = (
+    "https://archive.ics.uci.edu/static/public/374/appliances+energy+prediction.zip"
+)
 UCI_BIKESHARE_URL = "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip"
 NYC_TAXI_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet"
 
@@ -141,9 +143,7 @@ def download_dataset_suite(output_dir: Path, fetch_bytes: Callable[[str], bytes]
     raw_sources = {
         "fred": pd.read_csv(BytesIO(fetch_bytes(FRED_UNEMPLOYMENT_URL))),
         "noaa": pd.read_csv(BytesIO(fetch_bytes(NOAA_CENTRAL_PARK_URL))),
-        "appliance": _read_zip_csv(
-            fetch_bytes(UCI_APPLIANCES_URL), "energydata_complete.csv"
-        ),
+        "appliance": _read_zip_csv(fetch_bytes(UCI_APPLIANCES_URL), "energydata_complete.csv"),
         "bikeshare": _read_zip_csv(fetch_bytes(UCI_BIKESHARE_URL), "hour.csv"),
         "taxi": pd.read_parquet(BytesIO(fetch_bytes(NYC_TAXI_URL))),
     }
