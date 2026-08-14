@@ -207,3 +207,5 @@ TimesFM is developed by Google Research. This repository is an independent Strea
 ## License
 
 This application is released under the [MIT License](LICENSE). TimesFM model weights, upstream code, datasets, and third-party dependencies remain subject to their respective licenses and terms.
+
+<p align="center">Made with ❤️ by Ahmad Mujtaba</p>
